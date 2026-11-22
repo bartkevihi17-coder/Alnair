@@ -23,10 +23,11 @@ GitHub: https://github.com/bartkevihi17-coder/Alnair
 ## Abrir e testar
 
 1. Conclua a instalação do Roblox Studio.
-2. Na pasta do projeto, execute em PowerShell:
+2. Mais simples: execute ABRIR-ALNAIR.cmd para compilar e abrir o jogo diretamente.
+   Alternativamente, na pasta do projeto, execute em PowerShell:
    C:\Users\bartk\AppData\Local\Programs\Rojo\rojo.exe build default.project.json -o build\Alnair.rbxl
 3. Abra build\Alnair.rbxl no Roblox Studio e clique em Play.
-4. Para sincronização ao vivo, execute:
+4. Para sincronização ao vivo, execute SINCRONIZAR-ROJO.cmd ou, no terminal:
    C:\Users\bartk\AppData\Local\Programs\Rojo\rojo.exe serve default.project.json
    Instale o plugin Rojo 7 no Roblox Studio e clique em Rojo → Connect.
 5. Para corpo quadrado clássico também em jogo, em Avatar Settings no Studio selecione Avatar Type R6. A prévia usa R6 e a customização suporta R6 e R15.
