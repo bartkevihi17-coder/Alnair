@@ -4,6 +4,7 @@ local Lighting = game:GetService("Lighting")
 local Workspace = game:GetService("Workspace")
 
 local World = {}
+local ArtAssets=require(script.Parent:WaitForChild("ArtAssets"))
 local rng = Random.new(1479)
 
 local function part(parent, name, size, cf, color, material, shape)
@@ -23,8 +24,11 @@ local function part(parent, name, size, cf, color, material, shape)
 end
 
 local function makeLamp(parent, pos, height)
-    part(parent, "Pilar da chama", Vector3.new(.7,height,.7),
+    local post=part(parent, "Pilar da chama", Vector3.new(.7,height,.7),
         CFrame.new(pos.X,height/2,pos.Z), Color3.fromRGB(71,63,64), Enum.Material.Slate)
+    if ArtAssets.place("DUNGEON","Torch",parent,pos,height) then
+        post.Transparency=1
+    end
     local flame = part(parent, "Luz etérea", Vector3.new(.55,.85,.55),
         CFrame.new(pos.X,height+.3,pos.Z), Color3.fromRGB(117,190,247), Enum.Material.Neon, Enum.PartType.Ball)
     flame.CanCollide = false
@@ -36,22 +40,14 @@ local function makeLamp(parent, pos, height)
     glow.Parent = flame
 end
 
-local function createTree(parent, x, z, size, variation)
-    local wood = Color3.fromRGB(66,58,51)
-    local leaf = variation == 1 and Color3.fromRGB(48,96,90)
-        or variation == 2 and Color3.fromRGB(66,109,91)
-        or Color3.fromRGB(88,102,115)
-    part(parent, "Tronco", Vector3.new(1.3*size,7*size,1.3*size),
-        CFrame.new(x,3.5*size,z), wood, Enum.Material.Wood)
-    for _, t in ipairs({
-        {0,8.6,0,5.8},
-        {-2.2,7.2,.7,4.2},
-        {2,7.5,.2,4.5},
-        {.2,7.6,-2,4.0},
-    }) do
-        local leafPart = part(parent, "Copa", Vector3.new(t[4]*size,t[4]*.8*size,t[4]*size),
-            CFrame.new(x+t[1]*size,t[2]*size,z+t[3]*size), leaf, Enum.Material.Grass, Enum.PartType.Ball)
-        leafPart.CanCollide = false
+local function createTree(parent,x,z,size,variation)
+    local variants={"CommonTree_1","BirchTree_1","PineTree_3"}
+    local choice=variants[variation] or "CommonTree_1"
+    ArtAssets.place("NATURE",choice,parent,Vector3.new(x,0,z),size*13,rng:NextNumber(-3.14,3.14))
+    if rng:NextNumber()>.43 then
+        ArtAssets.place("NATURE","Bush_1",parent,
+            Vector3.new(x+rng:NextNumber(-4,4),0,z+rng:NextNumber(-4,4)),
+            size*2.5,rng:NextNumber(-3.14,3.14))
     end
 end
 
@@ -105,9 +101,12 @@ function World.create()
     for i = 0, 26 do
         local z = -122 + i*5
         local x = math.sin(i*.27)*2.5
-        part(world, "Trilha de pedras", Vector3.new(rng:NextNumber(3.5,5),.15,rng:NextNumber(3.1,4.8)),
+        local road=part(world, "Trilha de pedras", Vector3.new(rng:NextNumber(3.5,5),.15,rng:NextNumber(3.1,4.8)),
             CFrame.new(x,.01,z)*CFrame.Angles(0,rng:NextNumber(-.24,.24),0),
             Color3.fromRGB(111,119,123), Enum.Material.Slate)
+        if ArtAssets.place("VILLAGE","Path_Straight",world,Vector3.new(x,0,z),.3) then
+            road.Transparency=1
+        end
     end
 
     -- Praça segura para o início de jogo.
@@ -175,6 +174,23 @@ function World.create()
     makeLamp(world, Vector3.new(-13,0,-114), 5)
     makeLamp(world, Vector3.new(13,0,-114), 5)
 
+    -- Edificios e arcos de pedra importados; a rota central continua livre.
+    for _,cfg in ipairs({
+        {"VILLAGE","House_1",-71,22,19},
+        {"VILLAGE","House_2",-87,-23,19},
+        {"VILLAGE","Inn",72,12,26},
+        {"VILLAGE","Blacksmith",78,-57,20},
+        {"VILLAGE","Stable",-114,-65,19},
+        {"VILLAGE","Well",30,43,9},
+        {"VILLAGE","Mill",153,121,30},
+        {"FORTRESS","WatchTowerWRoof",-50,-139,31},
+        {"FORTRESS","LargeTower",58,-155,35},
+        {"DUNGEON","Entrance",0,-127,21},
+    }) do
+        ArtAssets.place(cfg[1],cfg[2],world,
+            Vector3.new(cfg[3],0,cfg[4]),cfg[5],rng:NextNumber(-.3,.3))
+    end
+
     -- Bosque espalhado; área de spawn livre.
     for i = 1, 86 do
         local x = rng:NextNumber(-270,270)
@@ -190,11 +206,24 @@ function World.create()
         local z = rng:NextNumber(-290,290)
         if x*x+z*z > 70*70 then
             local radius = rng:NextNumber(3,12)
-            part(world, "Pedra musgosa", Vector3.new(radius,radius*.65,radius*.8),
+            local collision=part(world, "Pedra musgosa", Vector3.new(radius,radius*.65,radius*.8),
                 CFrame.new(x,radius*.18,z), Color3.fromRGB(80,92,92), Enum.Material.Rock, Enum.PartType.Ball)
+            ArtAssets.replaceSolid(collision,"NATURE",
+                rng:NextNumber()>.4 and "Rock_Moss_1" or "Rock_3",
+                radius*.90,rng:NextNumber(-3.14,3.14))
         end
     end
 
+    -- Vegetacao rasteira espalhada para quebrar a repeticao do solo.
+    for i=1,110 do
+        local x=rng:NextNumber(-277,277)
+        local z=rng:NextNumber(-277,277)
+        if x*x+z*z>36*36 and math.abs(x)<308 and math.abs(z)<308 then
+            local variety=i%3==0 and "Grass_2" or i%3==1 and "Bush_2" or "Flowers"
+            ArtAssets.place("NATURE",variety,world,
+                Vector3.new(x,.02,z),rng:NextNumber(.7,2.5),rng:NextNumber(-3.14,3.14))
+        end
+    end
     return world
 end
 

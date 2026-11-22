@@ -6,6 +6,7 @@ local Workspace=game:GetService("Workspace")
 local RunService=game:GetService("RunService")
 local Rules=require(ReplicatedStorage:WaitForChild("AlnairShared"):WaitForChild("GameRules"))
 local EnemyDirector={}
+local ArtAssets=require(script.Parent:WaitForChild("ArtAssets"))
 local rng=Random.new(74332)
 local living={}
 local enemyFolder=nil
@@ -160,6 +161,8 @@ function EnemyDirector.spawn(kind,pos,options)
         motionPieces={},wanderPhase=rng:NextNumber(0,math.pi*2),
     }
     npc.Parent=enemyFolder
+    -- Malhas reais importadas pelo 3D Importer: preserve hitboxes invisiveis.
+    local imported=ArtAssets.actor(npc,kind,kind=="dragon" and 11 or kind=="warden" and 7.5 or 5.1)
     local rootCFrame=npc:GetPivot()
     for _,bodyPart in ipairs(npc:GetDescendants()) do
         if bodyPart:IsA("BasePart") and bodyPart.Name~="HumanoidRootPart" then

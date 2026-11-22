@@ -15,3 +15,6 @@ assets/vendor/
 !src/shared/AlnairEarMeshes.rbxmx
 # Avatar completo gerado no Roblox Studio (R15)
 !src/shared/AlnairRiggedBody.rbxmx
+
+# Biblioteca de arte 3D CC0 importada no Roblox Studio
+!src/shared/AlnairArtV05.rbxmx

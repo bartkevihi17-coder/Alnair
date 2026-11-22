@@ -8,6 +8,7 @@ local Workspace=game:GetService("Workspace")
 local Debris=game:GetService("Debris")
 local MarketplaceService=game:GetService("MarketplaceService")
 local Rules=require(ReplicatedStorage:WaitForChild("AlnairShared"):WaitForChild("GameRules"))
+local ArtAssets=require(script.Parent:WaitForChild("ArtAssets"))
 local Profiles=require(script.Parent:WaitForChild("PlayerProgress"))
 local WorldExpansion=require(script.Parent:WaitForChild("WorldExpansion"))
 local Enemies=require(script.Parent:WaitForChild("EnemyDirector"))
@@ -106,6 +107,9 @@ end
 local function mountVisual(player,kind)
     local rootPart,humanoid=characterRoot(player)
     if not rootPart or not humanoid then return nil end
+    -- Usa cavalo e dragao 3D de bibliotecas gratuitas, com solda no avatar.
+    local imported=ArtAssets.mount(player,kind,kind=="horse" and 5.7 or 9.2)
+    if imported then return imported end
     local mdl=Instance.new("Model")
     mdl.Name=kind=="horse" and "Cavalo do Viajante" or "Draco Celestial"
     local color=kind=="horse" and Color3.fromRGB(124,82,53) or Color3.fromRGB(100,92,161)

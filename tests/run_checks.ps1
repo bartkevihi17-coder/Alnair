@@ -12,12 +12,15 @@ Get-ChildItem (Join-Path $root "src") -Recurse -File |
   }
 & powershell -NoProfile -ExecutionPolicy Bypass -File (Join-Path $root "tests\run_rules.ps1")
 if($LASTEXITCODE -ne 0){throw "Falha rules"}
-$place=Join-Path $root "build\Alnair-v04-playtest.rbxlx"
+$python="C:\Users\bartk\AppData\Local\Programs\Python\Python314\python.exe"
+& $python (Join-Path $root "tests\art_assets_v05.py")
+if($LASTEXITCODE -ne 0){throw "Falha art assets"}
+$place=Join-Path $root "build\Alnair-v05-visual-test.rbxlx"
 & $rojo build (Join-Path $root "default.project.json") -o $place
 if($LASTEXITCODE -ne 0){throw "Falha Rojo"}
 [xml]$xml=[IO.File]::ReadAllText($place)
 $all=@($xml.SelectNodes("//Item/Properties/string[@name='Name']")|ForEach-Object {$_.InnerText})
-foreach($required in @("AlnairGameplay","GameplayUI","GameRules","WorldExpansion","EnemyDirector","PlayerProgress","AlnairRiggedBody","AlnairMeshes","AlnairEarMeshes")){
+foreach($required in @("AlnairGameplay","GameplayUI","GameRules","WorldExpansion","EnemyDirector","PlayerProgress","AlnairRiggedBody","AlnairMeshes","AlnairEarMeshes","AlnairArtV05","ArtAssets")){
     if($required -notin $all){throw ("Arquivo nao incluido no lugar: "+$required)}
     Write-Output ("PASS PLACE "+$required)
 }
