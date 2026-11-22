@@ -206,9 +206,40 @@ local function weapons(model, character, class)
     end
 end
 
+-- Rosto orgânico: poses faciais no rig importado, sem sobrepor imagens de
+-- sobrancelhas ou mouthParts quadrados ao modelo anatômico.
+local EXPRESSIONS = {
+    serene = {LeftLipCornerPuller=.18, RightLipCornerPuller=.18},
+    determined = {LeftBrowLowerer=.58,RightBrowLowerer=.58,LipPresser=.48},
+    mysterious = {LeftOuterBrowRaiser=.48,RightBrowLowerer=.20,RightLipCornerPuller=.16},
+    happy = {LeftLipCornerPuller=.77,RightLipCornerPuller=.77,LeftCheekRaiser=.34,RightCheekRaiser=.34},
+    warrior = {LeftBrowLowerer=.74,RightBrowLowerer=.42,LipPresser=.63},
+    shadow = {LeftBrowLowerer=.83,RightBrowLowerer=.83,LeftEyeClosed=.16,RightEyeClosed=.16},
+}
+local FACIAL_KEYS = {
+    "LeftLipCornerPuller","RightLipCornerPuller",
+    "LeftBrowLowerer","RightBrowLowerer",
+    "LeftOuterBrowRaiser","RightOuterBrowRaiser",
+    "LipPresser","LeftCheekRaiser","RightCheekRaiser",
+    "LeftEyeClosed","RightEyeClosed"
+}
+
+function Appearance.applyFaceControls(character, faceId)
+    local head = character and character:FindFirstChild("Head")
+    if not head then return end
+    local controls = head:FindFirstChildOfClass("FaceControls")
+    if not controls then return end
+    for _,prop in ipairs(FACIAL_KEYS) do
+        pcall(function() controls[prop]=0 end)
+    end
+    for prop,value in pairs(EXPRESSIONS[faceId] or EXPRESSIONS.serene) do
+        pcall(function() controls[prop]=value end)
+    end
+end
 function Appearance.apply(character, rawSelection)
     if not character then return end
     local selection = Catalog.clean(rawSelection)
+    local isOrganic = character:FindFirstChild("LeftUpperArm") ~= nil and character:FindFirstChild("RightLowerLeg") ~= nil
     local race = Catalog.Races[selection.race]
     local ap = selection.appearance
     local set = Catalog.findOption("set", ap.set)
@@ -245,7 +276,8 @@ function Appearance.apply(character, rawSelection)
     local head = find(character, { "Head" })
     local torso = find(character, { "Torso", "UpperTorso" })
     if head then
-        makeFace(head, ap.face, selection.race)
+        if not isOrganic then makeFace(head, ap.face, selection.race) end
+        if isOrganic then Appearance.applyFaceControls(character,ap.face) end
         local hairColor = selection.race == "undead" and Color3.fromRGB(99,119,113)
             or selection.race == "witch" and Color3.fromRGB(71,54,95)
             or Color3.fromRGB(64,48,43)
@@ -253,38 +285,84 @@ function Appearance.apply(character, rawSelection)
         MeshAccessories.eyebrows(character, head, hairColor)
         MeshAccessories.beard(character, head, ap.beard, hairColor)
         MeshAccessories.ears(character, head, ap.ears, selection.race, skin)
-        if selection.race == "witch" then
+        if selection.race == "witch" and not isOrganic then
             attach(character, head, Vector3.new(.25,.22,.08), CFrame.new(0,.22,-head.Size.Z*.52), race.accent, "ArcaneMark", "ball", Enum.Material.Neon)
         end
     end
-    decorateClothes(character, torso, ap, upperId, upperColor, race.accent)
-    addBoots(character, character, ap.feet, skin)
-    weapons(character, character, selection.class)
+    if isOrganic then
+        -- R15 real vindo do Avatar Setup: nada de peitorais ou botas quadradas.
+        local feetOption = Catalog.findOption("feet", ap.feet)
+        for _, partName in ipairs({"LeftFoot", "RightFoot"}) do
+            local p = character:FindFirstChild(partName)
+            if p and p:IsA("BasePart") then
+                p.Color = (feetOption and feetOption.color) or skin
+            end
+        end
+    else
+        -- Compatibilidade com o prototipo R6 anterior.
+        decorateClothes(character, torso, ap, upperId, upperColor, race.accent)
+        addBoots(character, character, ap.feet, skin)
+        weapons(character, character, selection.class)
+    end
 end
 
 -- Um manequim clássico R6 construído localmente para o ViewportFrame da UI.
 function Appearance.createPreview(parent)
+    -- MeshParts R15 reais para a pre-visualizacao. A cena de ViewportFrame
+    -- nao precisa carregar Humanoid, scripts nem articulacoes do jogo.
+    local source = script.Parent:FindFirstChild("AlnairRiggedBody")
+    if source and source:IsA("Model") then
+        local sourceRoot = source:FindFirstChild("HumanoidRootPart")
+        if sourceRoot and sourceRoot:IsA("BasePart") then
+            local rig = Instance.new("Model")
+            rig.Name = "PreviewAvatar"
+            -- Importacao da Quaternius fica longe da origem em coordenadas
+            -- do Studio. Relocamos cada malha individualmente para evitar
+            -- que a camera do WorldModel as deixe fora do enquadramento.
+            local base = CFrame.new(0, 2.55, 0)
+            for _, item in ipairs(source:GetChildren()) do
+                if item:IsA("MeshPart") then
+                    local mesh = item:Clone()
+                    for _, child in ipairs(mesh:GetDescendants()) do
+                        if child:IsA("Constraint")
+                            or child:IsA("Script")
+                            or child:IsA("LocalScript")
+                            then
+                            child:Destroy()
+                        end
+                    end
+                    mesh.CFrame = base * sourceRoot.CFrame:ToObjectSpace(item.CFrame)
+                    mesh.Anchored = true
+                    mesh.CanCollide = false
+                    mesh.CanTouch = false
+                    mesh.CanQuery = false
+                    mesh.Parent = rig
+                end
+            end
+            rig.Parent = parent
+            return rig
+        end
+    end
+
     local rig = Instance.new("Model")
     rig.Name = "PreviewAvatar"
-    local pieces = {
-        { "Torso", Vector3.new(2,2,1), Vector3.new(0,2.8,0) },
-        { "Head", Vector3.new(2,1,1), Vector3.new(0,4.4,0) },
-        { "Left Arm", Vector3.new(1,2,1), Vector3.new(-1.55,2.8,0) },
-        { "Right Arm", Vector3.new(1,2,1), Vector3.new(1.55,2.8,0) },
-        { "Left Leg", Vector3.new(1,2,1), Vector3.new(-.53,.8,0) },
-        { "Right Leg", Vector3.new(1,2,1), Vector3.new(.53,.8,0) },
-    }
-    for _, data in ipairs(pieces) do
-        local part = Instance.new("Part")
-        part.Name = data[1]
-        part.Size = data[2]
-        part.CFrame = CFrame.new(data[3])
-        part.Anchored = true
-        part.CanCollide = false
-        part.Material = Enum.Material.SmoothPlastic
-        part.Parent = rig
+    for _, info in ipairs({
+        {"Torso",Vector3.new(2,2,1),Vector3.new(0,2.8,0)},
+        {"Head",Vector3.new(2,1,1),Vector3.new(0,4.4,0)},
+        {"Left Arm",Vector3.new(1,2,1),Vector3.new(-1.55,2.8,0)},
+        {"Right Arm",Vector3.new(1,2,1),Vector3.new(1.55,2.8,0)},
+        {"Left Leg",Vector3.new(1,2,1),Vector3.new(-.53,.8,0)},
+        {"Right Leg",Vector3.new(1,2,1),Vector3.new(.53,.8,0)},
+    }) do
+        local part=Instance.new("Part")
+        part.Name=info[1]
+        part.Size=info[2]
+        part.CFrame=CFrame.new(info[3])
+        part.Anchored=true
+        part.CanCollide=false
+        part.Parent=rig
     end
-    rig.Parent = parent
+    rig.Parent=parent
     return rig
 end
 

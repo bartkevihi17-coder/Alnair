@@ -2,6 +2,15 @@
 
 RPG de fantasia em mundo aberto, criado no Roblox Studio com Luau e Rojo.
 
+## Prototipo visual 0.4 - experimental
+
+- Corpo humanoide organico importado da Quaternius, convertido em R15 pelo Avatar Setup do Roblox.
+- O rig com 15 MeshParts, Humanoid e articulacoes foi salvo em src/shared/AlnairRiggedBody.rbxmx.
+- A previa em ViewportFrame passou a usar as malhas originais; cabelos, barba e orelhas sao MeshParts externos.
+- Camera cinematografica de menu, camera em terceira pessoa e corrida com Shift; cutscene anterior mantida.
+- FaceControls e usado para presets de expressao quando o modelo permite animacao facial.
+- Prototipo: alguns detalhes de enquadramento do preview, roupas e armas 3D precisam de validacao visual antes da publicacao.
+
 ## Versão 0.1.0 — Fundação jogável
 
 - Menu: Campanha, Sandbox, Co-op (Em breve) e PvP (Em breve).

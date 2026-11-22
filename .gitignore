@@ -13,3 +13,5 @@ assets/vendor/
 # Malhas importadas do Studio essenciais para o jogo
 !src/shared/AlnairMeshes.rbxm
 !src/shared/AlnairEarMeshes.rbxmx
+# Avatar completo gerado no Roblox Studio (R15)
+!src/shared/AlnairRiggedBody.rbxmx

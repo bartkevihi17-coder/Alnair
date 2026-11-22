@@ -12,6 +12,21 @@ local World = require(script.Parent:WaitForChild("World"))
 -- Menu antes do spawn; aparência padrão da conta Roblox desativada.
 Players.CharacterAutoLoads = false
 StarterPlayer.LoadCharacterAppearance = false
+
+-- Avatar organico R15: importado FBX (Quaternius, CC0) e articulado via
+-- Avatar Setup. StarterCharacter mantem colisao/camera/animacoes do Humanoid.
+local rigSource = shared:FindFirstChild("AlnairRiggedBody")
+if rigSource and rigSource:IsA("Model") then
+    local starter = rigSource:Clone()
+    starter.Name = "StarterCharacter"
+    local rootPart = starter:FindFirstChild("HumanoidRootPart")
+    if rootPart and rootPart:IsA("BasePart") then
+        rootPart.Anchored = false
+    end
+    starter.Parent = StarterPlayer
+else
+    warn("[ALNAIR] Avatar R15 indisponivel, mantendo personagem Roblox nativo.")
+end
 local world = World.create()
 local spawn = world:FindFirstChild("AlnairSpawn")
 

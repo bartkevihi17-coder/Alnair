@@ -211,10 +211,13 @@ function Menu.show(gui, options)
         local row=item("TextButton",{
             Name="Menu_"..data[1],
             Text="",AutoButtonColor=false,BorderSizePixel=0,
+            BackgroundColor3=Color3.fromRGB(23,24,26),
+            BackgroundTransparency=enabled and (idx==1 and .17 or .36) or .78,
             Position=UDim2.fromScale(.335,y),Size=UDim2.fromScale(.36,.068),
             Active=enabled,Selectable=enabled,ZIndex=10,
         },root)
-        local rim=item("UIStroke",{Color=COLOR.gold,Thickness=1.2,Transparency=enabled and (idx==1 and .15 or .62) or .87},row)UDim2.fromScale(0,.1),UDim2.new(0,3,.80,0),COLOR.gold,idx==1 and .07 or 1,9)
+        local rim=item("UIStroke",{Color=COLOR.gold,Thickness=1.2,Transparency=enabled and (idx==1 and .15 or .62) or .87},row)
+        local mark=line(row,UDim2.fromScale(0,.1),UDim2.new(0,3,.80,0),COLOR.gold,idx==1 and .07 or 1,9)
         local number=label(row,string.format("%02d",idx),UDim2.fromScale(.105,.86),UDim2.fromScale(.015,.06),
             12,Enum.Font.GothamBold,enabled and COLOR.gold or COLOR.mute,10)
         local head=label(row,data[1],UDim2.fromScale(.48,.96),UDim2.fromScale(.114,.02),
