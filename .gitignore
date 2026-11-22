@@ -9,3 +9,7 @@ build/
 .DS_Store
 Thumbs.db
 .vscode/settings.json
+assets/vendor/
+# Malhas importadas do Studio essenciais para o jogo
+!src/shared/AlnairMeshes.rbxm
+!src/shared/AlnairEarMeshes.rbxmx

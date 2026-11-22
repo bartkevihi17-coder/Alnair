@@ -1,6 +1,7 @@
 --!strict
 -- Aparência procedural: não precisa de IDs externos de roupas ou acessórios.
 local Catalog = require(script.Parent.Catalog)
+local MeshAccessories = require(script.Parent.MeshAccessories)
 local Appearance = {}
 
 local function find(model, names)
@@ -136,16 +137,6 @@ local function hair(model, head, style, color)
     end
 end
 
-local function ears(model, head, style, race, skin)
-    if style == "normal" and race == "elf" then style = "pointed" end
-    if style == "normal" and race ~= "elf" then return end
-    local length = style == "long" and .9 or (style == "pointed" and .65 or .33)
-    for _, side in ipairs({ -1, 1 }) do
-        local transform = CFrame.new(side*(head.Size.X/2 + length*.28), 0.0, 0) * CFrame.Angles(0, side*math.rad(12), side*math.rad(14))
-        attach(model, head, Vector3.new(length, .35, .32), transform, skin, "Ear", "wedge")
-    end
-end
-
 local function decorateClothes(model, torso, appearance, upperId, upperColor, accent)
     if not torso or not upperColor or upperId == "bare" then return end
     local plateColor = upperId == "armor" and Color3.fromRGB(159,166,175) or accent
@@ -258,8 +249,10 @@ function Appearance.apply(character, rawSelection)
         local hairColor = selection.race == "undead" and Color3.fromRGB(99,119,113)
             or selection.race == "witch" and Color3.fromRGB(71,54,95)
             or Color3.fromRGB(64,48,43)
-        hair(character, head, ap.hair, hairColor)
-        ears(character, head, ap.ears, selection.race, skin)
+        MeshAccessories.hair(character, head, ap.hair, hairColor)
+        MeshAccessories.eyebrows(character, head, hairColor)
+        MeshAccessories.beard(character, head, ap.beard, hairColor)
+        MeshAccessories.ears(character, head, ap.ears, selection.race, skin)
         if selection.race == "witch" then
             attach(character, head, Vector3.new(.25,.22,.08), CFrame.new(0,.22,-head.Size.Z*.52), race.accent, "ArcaneMark", "ball", Enum.Material.Neon)
         end
