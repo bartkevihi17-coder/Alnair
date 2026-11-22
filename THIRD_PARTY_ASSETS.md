@@ -1,6 +1,14 @@
 # Alnair — Assets 3D de terceiros
 
-Este projeto conserva o corpo base clássico do Roblox (R6/blocky). Os acessórios de cabelo, sobrancelhas, barba e orelhas usam **malhas importadas**, não blocos gerados por scripts.
+Este projeto usa o corpo R15 anatomico da Quaternius no jogo. Cabelos, sobrancelhas, barba e orelhas usam malhas externas, sem Partes geometricas criadas por scripts.
+
+## Corpo humanoide R15 - versao 0.4
+- Autor de origem: Quaternius, Universal Base Characters, distribuido sob licenca CC0.
+- Fonte: Superhero_Male_FullBody.fbx do pacote gratuito.
+- Conversao pelo Avatar Setup do Roblox Studio: 15 MeshParts organicos, Humanoid e articulacoes para animacao.
+- No repositorio: src/shared/AlnairRiggedBody.rbxmx.
+- Originais e conversoes intermediarias mantidos localmente em assets/vendor/ e fora do Git.
+- O jogo local exibiu o corpo organico na cena de exploracao. O editor de avatar requer verificacao visual adicional.
 
 ## Cabelos, barba e sobrancelhas
 - Artista: Quaternius.

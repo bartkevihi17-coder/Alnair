@@ -113,26 +113,26 @@ function Menu.show(gui, options)
         Enum.Font.GothamBold,COLOR.mute,5)
     topRight.TextXAlignment=Enum.TextXAlignment.Right
 
-    local eyebrow=label(root,"UM NOVO DESTINO AGUARDA",UDim2.fromScale(.5,.035),UDim2.fromScale(.087,.19),11,
+    local eyebrow=label(root,"UM NOVO DESTINO AGUARDA",UDim2.fromScale(.44,.035),UDim2.fromScale(.29,.160),11,
         Enum.Font.GothamBold,COLOR.gold,5)
-    local title=label(root,"ALNAIR",UDim2.fromScale(.61,.16),UDim2.fromScale(.069,.242),76,
+    local title=label(root,"ALNAIR",UDim2.fromScale(.50,.16),UDim2.fromScale(.27,.202),84,
         Enum.Font.Antique,COLOR.light,5)
-    title.TextStrokeColor3=COLOR.ink
+    title.TextXAlignment=Enum.TextXAlignment.Center
     title.TextStrokeTransparency=.66
-    local rule=line(root,UDim2.fromScale(.088,.423),UDim2.new(.13,0,0,2),COLOR.gold,.25,5)
-    local tagline=label(root,"Toda era começa com uma escolha.",UDim2.fromScale(.48,.055),
-        UDim2.fromScale(.086,.440),16,Enum.Font.Antique,COLOR.paper,5)
+    local rule=line(root,UDim2.fromScale(.447,.373),UDim2.new(.105,0,0,2),COLOR.gold,.25,5)
+    local tagline=label(root,"Toda era começa com uma escolha.",UDim2.fromScale(.46,.055),
+        UDim2.fromScale(.30,.385),16,Enum.Font.Antique,COLOR.paper,5)
     local secondary=label(root,"Desperte entre as ruínas de um mundo esquecido.\nA história ainda não foi escrita.",
-        UDim2.fromScale(.47,.068),UDim2.fromScale(.086,.49),12,Enum.Font.Gotham,COLOR.mute,5)
+        UDim2.fromScale(.45,.060),UDim2.fromScale(.31,.446),12,Enum.Font.Gotham,COLOR.mute,5)
     secondary.TextYAlignment=Enum.TextYAlignment.Top
 
     -- Acento delicado e pontual em vez de linhas verticais brilhantes sobre toda a tela.
     local time=0
-    local halo=glowCircle(root,UDim2.fromScale(.753,.43),236,COLOR.blue,.91)
-    local ring=glowCircle(root,UDim2.fromScale(.753,.43),189,COLOR.gold,.89)
+    local halo=glowCircle(root,UDim2.fromScale(.175,.57),236,COLOR.blue,.91)
+    local ring=glowCircle(root,UDim2.fromScale(.175,.57),189,COLOR.gold,.89)
     local stars={}
     for i=1,9 do
-        stars[i]=designNode(root,UDim2.fromScale(.75,.42),i%3==0 and 4 or 2,
+        stars[i]=designNode(root,UDim2.fromScale(.175,.57),i%3==0 and 4 or 2,
             i%3==0 and COLOR.gold or COLOR.blue)
     end
 
@@ -144,14 +144,14 @@ function Menu.show(gui, options)
         for i,v in ipairs(stars) do
             local alpha=i*math.pi*2/#stars+time*(i%2==0 and -.085 or .07)
             local radius=.16+(i%3)*.015
-            v.Position=UDim2.fromScale(.753+math.cos(alpha)*radius*.55,.43+math.sin(alpha)*radius)
+            v.Position=UDim2.fromScale(.175+math.cos(alpha)*radius*.55,.57+math.sin(alpha)*radius)
             v.BackgroundTransparency=.38+.28*math.sin(time*1.5+i)
         end
     end)
     table.insert(callbacks,function()onUpdate:Disconnect()end)
 
     local summary=label(root," ✦   SUA JORNADA, SUAS ESCOLHAS",UDim2.fromScale(.34,.05),
-        UDim2.fromScale(.652,.746),10,Enum.Font.GothamBold,COLOR.gold,7)
+        UDim2.fromScale(.065,.826),10,Enum.Font.GothamBold,COLOR.gold,7)
     summary.TextXAlignment=Enum.TextXAlignment.Center
 
     -- Manequim de destaque; ganha automaticamente os modelos 3D importados
@@ -162,7 +162,7 @@ function Menu.show(gui, options)
             Ambient=Color3.fromRGB(178,184,191),LightColor=Color3.fromRGB(250,223,185),
             LightDirection=Vector3.new(-.8,-1,-.7),
             BackgroundTransparency=1,BorderSizePixel=0,
-            Position=UDim2.fromScale(.57,.164),Size=UDim2.fromScale(.37,.56),ZIndex=6,
+            Position=UDim2.fromScale(.065,.325),Size=UDim2.fromScale(.25,.49),ZIndex=6,
         },root)
         local model=item("WorldModel",{},viewport)
         local mannequin=options.appearance.createPreview(model)
@@ -206,14 +206,17 @@ function Menu.show(gui, options)
     end
 
     for idx,data in ipairs(menu) do
-        local y=.615+(idx-1)*.067
+        local y=.530+(idx-1)*.080
         local enabled=data[3]
         local row=item("TextButton",{
             Name="Menu_"..data[1],
-            Text="",AutoButtonColor=false,BorderSizePixel=0,BackgroundTransparency=1,
-            Position=UDim2.fromScale(.09,y),Size=UDim2.fromScale(.405,.060),
+            Text="",AutoButtonColor=false,BorderSizePixel=0,
+            BackgroundColor3=Color3.fromRGB(23,24,26),
+            BackgroundTransparency=enabled and (idx==1 and .17 or .36) or .78,
+            Position=UDim2.fromScale(.335,y),Size=UDim2.fromScale(.36,.068),
             Active=enabled,Selectable=enabled,ZIndex=10,
         },root)
+        local rim=item("UIStroke",{Color=COLOR.gold,Thickness=1.2,Transparency=enabled and (idx==1 and .15 or .62) or .87},row)
         local mark=line(row,UDim2.fromScale(0,.1),UDim2.new(0,3,.80,0),COLOR.gold,idx==1 and .07 or 1,9)
         local number=label(row,string.format("%02d",idx),UDim2.fromScale(.105,.86),UDim2.fromScale(.015,.06),
             12,Enum.Font.GothamBold,enabled and COLOR.gold or COLOR.mute,10)
@@ -226,7 +229,7 @@ function Menu.show(gui, options)
         desc.TextXAlignment=Enum.TextXAlignment.Right
         line(row,UDim2.fromScale(0,.99),UDim2.new(1,0,0,1),
             enabled and COLOR.gold or COLOR.mute,enabled and .77 or .93,10)
-        rows[idx]={mark=mark,head=head,desc=desc,button=row}
+        rows[idx]={mark=mark,head=head,desc=desc,button=row,rim=rim}
         if enabled then
             row.MouseEnter:Connect(function()activate(idx)end)
             row.SelectionGained:Connect(function()activate(idx)end)
@@ -238,7 +241,7 @@ function Menu.show(gui, options)
         end
     end
 
-    local footer=label(root,"✦  ALNAIR  /  A LENDA COMEÇA AQUI",UDim2.fromScale(.48,.055),
+    local footer=label(root,"✦  ALNAIR  /  A LENDA COMEÇA AQUI",UDim2.fromScale(.46,.055),
         UDim2.fromScale(.082,.925),10,Enum.Font.GothamMedium,COLOR.mute,5)
     local version=label(root,"EDIÇÃO DE DESENVOLVIMENTO   •   0.3",UDim2.fromScale(.34,.06),
         UDim2.fromScale(.605,.926),10,Enum.Font.GothamMedium,COLOR.mute,5)

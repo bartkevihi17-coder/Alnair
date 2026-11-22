@@ -15,6 +15,7 @@ local Catalog = require(shared:WaitForChild("Catalog"))
 local Appearance = require(shared:WaitForChild("Appearance"))
 local Visuals = require(script.Parent:WaitForChild("Visuals"))
 local MenuReforged = require(script.Parent:WaitForChild("MenuReforged"))
+local CameraDirector = require(script.Parent:WaitForChild("CameraDirector"))
 local startEvent = ReplicatedStorage:WaitForChild("AlnairRemotes"):WaitForChild("StartJourney")
 
 while not workspace.CurrentCamera do task.wait() end
@@ -817,6 +818,7 @@ end
 renderCreator=function()
     clear()
     scenicCamera()
+    register(CameraDirector.creator(camera))
     local root=base()
     signature(root,"UM NOVO DESTINO  •  CRIAÇÃO DO PERSONAGEM")
     -- Elementos de movimento discretos no fundo, preservando a legibilidade.
@@ -840,6 +842,7 @@ renderMenu = function()
     camera.CameraType = Enum.CameraType.Scriptable
     camera.FieldOfView = 56
     camera.CFrame = CFrame.lookAt(Vector3.new(29,17,63),Vector3.new(0,6,-83))
+    register(CameraDirector.menu(camera))
     register(MenuReforged.show(gui,{
         appearance = Appearance,
         selection = state,
@@ -871,7 +874,8 @@ local function enterGame(mode)
     camera.FieldOfView=70
     local character=player.Character or player.CharacterAdded:Wait()
     local humanoid=character:FindFirstChildOfClass("Humanoid") or character:WaitForChild("Humanoid",15)
-    if humanoid then camera.CameraSubject=humanoid end
+    if humanoid then register(CameraDirector.explore(camera,player,humanoid)) end
+    Appearance.applyFaceControls(character,state.appearance.face)
 
     local hud=obj("Frame",{
         BackgroundColor3=bg,BackgroundTransparency=.25,BorderSizePixel=0,
