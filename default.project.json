@@ -1,0 +1,22 @@
+{
+  "name": "Alnair",
+  "tree": {
+    "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "AlnairShared": { "$path": "src/shared" }
+    },
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "AlnairServer": { "$path": "src/server" }
+    },
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$properties": { "LoadCharacterAppearance": false },
+      "StarterPlayerScripts": {
+        "$className": "StarterPlayerScripts",
+        "AlnairClient": { "$path": "src/client" }
+      }
+    }
+  }
+}

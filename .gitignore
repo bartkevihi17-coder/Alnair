@@ -1,0 +1,11 @@
+# Outputs do Studio/Rojo
+build/
+*.rbxl
+*.rbxlx
+*.rbxm
+*.rbxmx
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+.vscode/settings.json
