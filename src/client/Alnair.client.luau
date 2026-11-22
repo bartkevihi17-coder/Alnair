@@ -14,6 +14,7 @@ local shared = ReplicatedStorage:WaitForChild("AlnairShared")
 local Catalog = require(shared:WaitForChild("Catalog"))
 local Appearance = require(shared:WaitForChild("Appearance"))
 local Visuals = require(script.Parent:WaitForChild("Visuals"))
+local MenuReforged = require(script.Parent:WaitForChild("MenuReforged"))
 local startEvent = ReplicatedStorage:WaitForChild("AlnairRemotes"):WaitForChild("StartJourney")
 
 while not workspace.CurrentCamera do task.wait() end
@@ -29,6 +30,7 @@ gui.Parent = playerGui
 local ink = Color3.fromRGB(8, 15, 22)
 local dark = Color3.fromRGB(14, 24, 33)
 local soft = Color3.fromRGB(24, 36, 46)
+local bg = dark
 local ivory = Color3.fromRGB(240, 233, 213)
 local muted = Color3.fromRGB(162, 174, 177)
 local gold = Color3.fromRGB(225, 183, 115)
@@ -831,6 +833,36 @@ renderCreator=function()
     fadingEntrance(root)
 end
 
+-- Menu de título cinematográfico renovado; funções do criador permanecem independentes.
+renderMenu = function()
+    clear()
+    waiting = false
+    camera.CameraType = Enum.CameraType.Scriptable
+    camera.FieldOfView = 56
+    camera.CFrame = CFrame.lookAt(Vector3.new(29,17,63),Vector3.new(0,6,-83))
+    register(MenuReforged.show(gui,{
+        appearance = Appearance,
+        selection = state,
+        campaign = function()
+            state.mode = "campaign"
+            currentStep = 1
+            renderCreator()
+        end,
+        sandbox = function()
+            state.mode = "sandbox"
+            waiting = true
+            clear()
+            local waitScreen = base()
+            signature(waitScreen,"PREPARANDO O MUNDO")
+            label(waitScreen,"Alnair desperta ao seu redor...",36,ivory,Enum.Font.Antique,
+                UDim2.fromScale(.86,.20),{
+                    Position=UDim2.fromScale(.07,.40),
+                    TextXAlignment=Enum.TextXAlignment.Center,
+                })
+            startEvent:FireServer("sandbox",{})
+        end,
+    }))
+end
 -- O restante do script é o prólogo cinematográfico original, sem mudanças.
 
 local function enterGame(mode)

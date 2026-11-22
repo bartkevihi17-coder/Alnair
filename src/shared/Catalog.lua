@@ -36,7 +36,7 @@ Catalog.Classes = {
 }
 
 -- IDs livres de caracteres especiais para preservar no Git e facilitar DataStore futuro.
-Catalog.PresetOrder = { "face", "ears", "hair", "upper", "lower", "set", "feet" }
+Catalog.PresetOrder = { "face", "ears", "hair", "beard", "upper", "lower", "set", "feet" }
 Catalog.Presets = {
     face = {
         name = "Rosto",
@@ -64,9 +64,17 @@ Catalog.Presets = {
             { id = "short", name = "Curto" },
             { id = "fringe", name = "Franja" },
             { id = "long", name = "Longo" },
-            { id = "mohawk", name = "Moicano" },
+            { id = "mohawk", name = "Curto estilizado" },
             { id = "bun", name = "Coque" },
             { id = "bald", name = "Careca" },
+        },
+    },
+    beard = {
+        name = "Barba",
+        options = {
+            { id = "none", name = "Sem barba" },
+            { id = "full", name = "Barba completa" },
+            { id = "trim", name = "Barba curta" },
         },
     },
     upper = {
@@ -116,6 +124,7 @@ Catalog.DefaultAppearance = {
     face = "serene",
     ears = "normal",
     hair = "short",
+    beard = "none",
     upper = "tunic",
     lower = "pants",
     set = "none",
