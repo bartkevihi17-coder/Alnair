@@ -7,6 +7,7 @@ local StarterPlayer = game:GetService("StarterPlayer")
 local shared = ReplicatedStorage:WaitForChild("AlnairShared")
 local Catalog = require(shared:WaitForChild("Catalog"))
 local Appearance = require(shared:WaitForChild("Appearance"))
+local RigAdapter=require(script.Parent:WaitForChild("RigAdapter"))
 local World = require(script.Parent:WaitForChild("World"))
 
 -- Menu antes do spawn; aparência padrão da conta Roblox desativada.
@@ -19,6 +20,16 @@ local rigSource = shared:FindFirstChild("AlnairRiggedBody")
 if rigSource and rigSource:IsA("Model") then
     local starter = rigSource:Clone()
     starter.Name = "StarterCharacter"
+    local adapted,count=RigAdapter.adapt(starter)
+    local bodyHumanoid=starter:FindFirstChildOfClass("Humanoid")
+    if bodyHumanoid then
+        -- Evita que o auto scaling da Avatar Setup recalcule HipHeight negativo.
+        bodyHumanoid.AutomaticScalingEnabled=false
+        bodyHumanoid.HipHeight=2.67
+    end
+    if not adapted then
+        warn("[ALNAIR] Rig R15 incompleto:",count,"juntas; verificar animacoes.")
+    end
     local rootPart = starter:FindFirstChild("HumanoidRootPart")
     if rootPart and rootPart:IsA("BasePart") then
         rootPart.Anchored = false
@@ -91,6 +102,9 @@ startEvent.OnServerEvent:Connect(function(player, mode, payload)
         and Catalog.clean({})
         or Catalog.clean(payload)
     active[player] = selection
+    for _,key in ipairs(Catalog.PresetOrder) do
+        player:SetAttribute("AlnairPreset_"..key,selection.appearance[key])
+    end
 
     player:SetAttribute("AlnairMode", mode)
     player:SetAttribute("AlnairRace", selection.race)

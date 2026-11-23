@@ -1,6 +1,6 @@
 --!strict
 -- Cenário inicial gerado no servidor. É um protótipo de exploração, não o mapa final.
-local Lighting = game:GetService("Lighting")
+local WorldLighting = require(script.Parent:WaitForChild("WorldLighting"))
 local Workspace = game:GetService("Workspace")
 
 local World = {}
@@ -38,6 +38,7 @@ local function makeLamp(parent, pos, height)
     glow.Range = 23
     glow.Shadows = false
     glow.Parent = flame
+    WorldLighting.embers(flame, false)
 end
 
 local function createTree(parent,x,z,size,variation)
@@ -52,37 +53,7 @@ local function createTree(parent,x,z,size,variation)
 end
 
 local function setupLighting()
-    Lighting.ClockTime = 17.6
-    Lighting.Brightness = 2.2
-    Lighting.Ambient = Color3.fromRGB(94,93,117)
-    Lighting.OutdoorAmbient = Color3.fromRGB(112,119,135)
-    Lighting.FogColor = Color3.fromRGB(121,139,156)
-    Lighting.FogStart = 100
-    Lighting.FogEnd = 510
-    Lighting.GlobalShadows = true
-
-    local atmosphere = Lighting:FindFirstChild("AlnairAtmosphere") or Instance.new("Atmosphere")
-    atmosphere.Name = "AlnairAtmosphere"
-    atmosphere.Density = .29
-    atmosphere.Haze = 1.7
-    atmosphere.Glare = .12
-    atmosphere.Color = Color3.fromRGB(195,190,209)
-    atmosphere.Decay = Color3.fromRGB(77,103,133)
-    atmosphere.Parent = Lighting
-
-    local bloom = Lighting:FindFirstChild("AlnairBloom") or Instance.new("BloomEffect")
-    bloom.Name = "AlnairBloom"
-    bloom.Intensity = .32
-    bloom.Size = 25
-    bloom.Threshold = 1.7
-    bloom.Parent = Lighting
-
-    local color = Lighting:FindFirstChild("AlnairColor") or Instance.new("ColorCorrectionEffect")
-    color.Name = "AlnairColor"
-    color.Contrast = .11
-    color.Saturation = -.08
-    color.TintColor = Color3.fromRGB(222,225,245)
-    color.Parent = Lighting
+    WorldLighting.apply()
 end
 
 function World.create()
@@ -169,6 +140,7 @@ function World.create()
     light.Brightness = 2
     light.Range = 25
     light.Parent = fire
+    WorldLighting.embers(fire, true)
     makeLamp(world, Vector3.new(-20,0,-16), 7)
     makeLamp(world, Vector3.new(20,0,-16), 7)
     makeLamp(world, Vector3.new(-13,0,-114), 5)

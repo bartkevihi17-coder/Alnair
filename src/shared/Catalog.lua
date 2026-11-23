@@ -10,7 +10,7 @@ Catalog.Races = {
         color = Color3.fromRGB(203, 156, 118), accent = Color3.fromRGB(222, 178, 114),
     },
     witch = {
-        name = "Bruxo", title = "O sangue arcano",
+        name = "Bruxa", title = "O sangue arcano",
         description = "A magia antiga deixa marcas na pele e na própria alma.",
         color = Color3.fromRGB(181, 157, 207), accent = Color3.fromRGB(163, 117, 233),
     },
@@ -85,7 +85,7 @@ Catalog.Presets = {
             { id = "armor", name = "Peitoral de ferro", color = Color3.fromRGB(116, 129, 145) },
             { id = "robe", name = "Manto arcano", color = Color3.fromRGB(82, 72, 125) },
             { id = "linen", name = "Linho claro", color = Color3.fromRGB(182, 173, 151) },
-            { id = "bare", name = "Sem camisa", color = nil },
+            { id = "bare", name = "Túnica simples", color = nil },
         },
     },
     lower = {
