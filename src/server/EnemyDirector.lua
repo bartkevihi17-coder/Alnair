@@ -5,8 +5,12 @@ local ReplicatedStorage=game:GetService("ReplicatedStorage")
 local Workspace=game:GetService("Workspace")
 local RunService=game:GetService("RunService")
 local Rules=require(ReplicatedStorage:WaitForChild("AlnairShared"):WaitForChild("GameRules"))
+local CombatChecks=require(ReplicatedStorage:WaitForChild("AlnairShared"):WaitForChild("CombatChecks"))
+local BlockyRig=require(ReplicatedStorage:WaitForChild("AlnairShared"):WaitForChild("BlockyRig"))
+local Appearance=require(ReplicatedStorage:WaitForChild("AlnairShared"):WaitForChild("Appearance"))
+local WeaponRender=require(ReplicatedStorage:WaitForChild("AlnairShared"):WaitForChild("WeaponRender"))
+
 local EnemyDirector={}
-local ArtAssets=require(script.Parent:WaitForChild("ArtAssets"))
 local rng=Random.new(74332)
 local living={}
 local enemyFolder=nil
@@ -16,16 +20,6 @@ local counter=0
 local tickCount=0
 local maxNPC=0
 
-local function part(parent,name,size,cf,color,material,shape)
-    local p=Instance.new("Part")
-    p.Name=name;p.Size=size;p.CFrame=cf;p.Color=color
-    p.Material=material or Enum.Material.SmoothPlastic
-    if shape then p.Shape=shape end
-    p.TopSurface=Enum.SurfaceType.Smooth;p.BottomSurface=Enum.SurfaceType.Smooth
-    p.Anchored=true;p.CanCollide=false;p.CanTouch=false;p.CanQuery=false
-    p.Parent=parent
-    return p
-end
 local function label(record)
     local root=record.model
     local head=root:FindFirstChild("Head")
@@ -47,90 +41,133 @@ local function label(record)
     bar.BackgroundColor3=Color3.fromRGB(199,79,82);bar.Parent=bg
     record.healthBar=bar
 end
+-- 100% dos inimigos usam o avatar articulado R15 BLOCKY criado pelo Roblox.
+-- Não criar cabeças/olhos/cabelos com Parts. Cinco acessórios de costas reais.
+-- Os acessórios e roupas abaixo são IDs oficiais Roblox verificados.
+local EnemyLooks={
+    skeleton={
+        race="undead",class="assassin",
+        appearance={face="mysterious",hair="bald",hat="hood",
+            upper="linen",lower="pants",set="none"},
+    },
+    orc={
+        race="undead",class="fighter",
+        appearance={face="determined",hair="mohawk",hat="none",
+            upper="forest",lower="leather",set="none"},
+    },
+    witch={
+        race="witch",class="mage",
+        appearance={face="shadow",hair="bun",hat="hood",
+            upper="robe",lower="hakama",set="none"},
+    },
+    dragon={
+        race="undead",class="samurai",
+        appearance={face="warrior",hair="mohawk",hat="hood",
+            upper="armor",lower="leather",set="none"},
+    },
+    warden={
+        race="undead",class="warrior",
+        appearance={face="determined",hair="bald",hat="knighthelm",
+            upper="armor",lower="hakama",set="none"},
+    },
+}
+local nativeEnemyTemplates={}
+
+local function enemyTemplate(kind)
+    local previous=nativeEnemyTemplates[kind]
+    if previous then return previous end
+    local appearance=EnemyLooks[kind]
+    assert(appearance,"Unknown Roblox enemy look: "..kind)
+    local desc=Appearance.description(appearance)
+    -- Enemy skin follows enemy species, not the playable race.
+    local skin=Rules.Enemies[kind] and Rules.Enemies[kind].color
+    if skin then
+        desc.HeadColor=skin
+        desc.LeftArmColor=skin
+        desc.RightArmColor=skin
+    end
+    local ok,model=pcall(function()
+        return BlockyRig.create(desc)
+    end)
+    desc:Destroy()
+    if not ok then
+        warn("[ALNAIR] O motor Roblox não criou o NPC R15 articulado:",kind,model)
+        return nil
+    end
+    model.Name="NativeRobloxNPC_"..kind
+    model:SetAttribute("AlnairAvatarSource","RobloxHumanoidDescription")
+    model:SetAttribute("AlnairRig","RobloxBlockyR15")
+    Appearance.arrangeAccessories(model,appearance)
+    model.Archivable=true
+    nativeEnemyTemplates[kind]=model
+    return model
+end
+
 local function visual(kind,center,level,health,rank)
-    local info=Rules.Enemies[kind]
-    local model=Instance.new("Model")
-    model.Name=info.name.." [Nv."..level.."]"
+    local template=enemyTemplate(kind)
+    if not template then return nil,nil end
+    local model=template:Clone()
+    model.Name=Rules.Enemies[kind].name.." [Nv."..level.."]"
     model:SetAttribute("AlnairEnemyKind",kind)
     model:SetAttribute("AlnairEnemyLevel",level)
     model:SetAttribute("AlnairEnemyRank",rank)
-    local scale=kind=="dragon" and 2.25 or kind=="warden" and 1.32 or 1
-    local skin=info.color
-    local root=part(model,"HumanoidRootPart",Vector3.new(2,2,2),CFrame.new(center),skin)
-    root.Transparency=1
-    model.PrimaryPart=root
-    local chest=part(model,"Chest",Vector3.new(2.1,2.6,1.3)*scale,
-        CFrame.new(center+Vector3.new(0,.1,0)),skin)
-    part(model,"Head",Vector3.new(1.55,1.5,1.4)*scale,
-        CFrame.new(center+Vector3.new(0,2.05*scale,0)),skin,Enum.Material.SmoothPlastic,Enum.PartType.Ball)
-    for _,side in ipairs({-1,1}) do
-        part(model,"Arm",Vector3.new(.65,2.2,.75)*scale,
-            CFrame.new(center+Vector3.new(side*1.42*scale,-.08,0)),
-            skin)
-        part(model,"Leg",Vector3.new(.79,2,.82)*scale,
-            CFrame.new(center+Vector3.new(side*.55*scale,-1.88*scale,0)),
-            kind=="skeleton" and skin or Color3.fromRGB(49,52,59))
-        if kind=="orc" then
-            part(model,"Presa",Vector3.new(.27,.53,.27)*scale,
-                CFrame.new(center+Vector3.new(side*.45*scale,1.76*scale,-.73*scale)),
-                Color3.fromRGB(234,228,191))
-        elseif kind=="dragon" then
-            part(model,"Asa",Vector3.new(3.2,.38,4.7)*scale,
-                CFrame.new(center+Vector3.new(side*2.2*scale,1.2*scale,1))
-                    *CFrame.Angles(0,side*.35,side*.30),
-                Color3.fromRGB(91,50,52),Enum.Material.SmoothPlastic)
-        end
+    local humanoid=model:FindFirstChildOfClass("Humanoid")
+    local root=model:FindFirstChild("HumanoidRootPart")
+    if not (humanoid and root) then
+        model:Destroy()
+        return nil,nil
     end
-    if kind=="skeleton" then
-        for i=-1,1 do
-            part(model,"Costela",Vector3.new(1.7,.14,.3),
-                CFrame.new(center+Vector3.new(0,i*.47,-.70)),
-                Color3.fromRGB(241,240,222))
-        end
-    elseif kind=="witch" then
-        part(model,"Chapeu",Vector3.new(2.6,.20,2.6),
-            CFrame.new(center+Vector3.new(0,2.90,0)),
-            Color3.fromRGB(50,40,73),Enum.Material.Fabric,Enum.PartType.Cylinder)
-        part(model,"Chapeu Ponta",Vector3.new(.75,1.35,.75),
-            CFrame.new(center+Vector3.new(0,3.58,0)),
-            Color3.fromRGB(60,43,89))
+    -- Chefes permanecem maiores, mas continuam R6 genuínos.
+    if kind=="dragon" then
+        model:ScaleTo(1.85)
     elseif kind=="warden" then
-        part(model,"Armadura do Vigia",Vector3.new(2.5,2.2,1.6),
-            CFrame.new(center+Vector3.new(0,.1,-.05)),Color3.fromRGB(52,70,83),Enum.Material.Metal)
+        model:ScaleTo(1.22)
     end
-    for _,side in ipairs({-.37,.37}) do
-        local eye=part(model,"Olho",Vector3.new(.25,.20,.19)*scale,
-            CFrame.new(center+Vector3.new(side*scale,2.17*scale,-.69*scale)),
-            kind=="skeleton" and Color3.fromRGB(69,209,237) or Color3.fromRGB(225,104,87),
-            Enum.Material.Neon,Enum.PartType.Ball)
-        eye.CanQuery=false
-    end
-    local hum=Instance.new("Humanoid")
-    hum.Name="Humanoid";hum.BreakJointsOnDeath=false
-    hum.RequiresNeck=false;hum.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
-    hum.MaxHealth=health;hum.Health=health;hum.WalkSpeed=0
-    hum.Parent=model
-    model.PrimaryPart=root
-    local presetFolder=ReplicatedStorage:FindFirstChild("AlnairShared")
-    local assetFolder=presetFolder and presetFolder:FindFirstChild("EnemyMeshes")
-    if assetFolder then
-        local prefab=assetFolder:FindFirstChild(kind)
-        if prefab and prefab:IsA("MeshPart") then
-            local visualMesh=prefab:Clone()
-            visualMesh.Name="ImportedCreatureMesh"
-            visualMesh.Size=Vector3.new(3,5,2.8)*scale
-            visualMesh.CFrame=root.CFrame
-            visualMesh.Anchored=true
-            visualMesh.CanCollide=false
-            visualMesh.Parent=model
-            for _,partIn in ipairs(model:GetChildren()) do
-                if partIn:IsA("BasePart") and partIn~=root and partIn~=visualMesh then partIn.Transparency=1 end
-            end
+    for _,body in ipairs(model:GetDescendants()) do
+        if body:IsA("BasePart") then
+            body.CanCollide=false
+            body.CanTouch=false
+            body.CanQuery=false
+            body.Massless=true
+            body.Anchored=(body==root)
         end
     end
-    return model,hum
+    root.Transparency=1
+    humanoid.BreakJointsOnDeath=false
+    humanoid.RequiresNeck=false
+    humanoid.AutoRotate=false
+    humanoid.WalkSpeed=0
+    humanoid.DisplayDistanceType=Enum.HumanoidDisplayDistanceType.None
+    humanoid.MaxHealth=health
+    humanoid.Health=health
+    model.PrimaryPart=root
+    model:PivotTo(CFrame.new(center))
+    local look=EnemyLooks[kind]
+    if look then WeaponRender.attach(model,look.class)end
+    return model,humanoid
 end
 
+-- Native Roblox-created R15 animation assets (verified MarketplaceService).
+-- Unlike the old fake limbs these clips bend actual R15 elbows and knees.
+local function npcTrack(humanoid,id,priority,looped)
+    local animator=humanoid:FindFirstChildOfClass("Animator")
+    if not animator then
+        animator=Instance.new("Animator")
+        animator.Parent=humanoid
+    end
+    local clip=Instance.new("Animation")
+    clip.Name="RobloxNativeR15_"..tostring(id)
+    clip.AnimationId="rbxassetid://"..tostring(id)
+    local ok,track=pcall(function()return animator:LoadAnimation(clip)end)
+    clip:Destroy()
+    if not ok or not track then
+        warn("[ALNAIR] Animacao oficial NPC indisponivel:",id,track)
+        return nil
+    end
+    track.Priority=priority or Enum.AnimationPriority.Movement
+    track.Looped=looped==true
+    return track
+end
 function EnemyDirector.setOnKill(fn)onKill=fn end
 function EnemyDirector.get() return living end
 function EnemyDirector.count(owner)
@@ -150,6 +187,10 @@ function EnemyDirector.spawn(kind,pos,options)
     local hp=math.floor(data.hp*(1+(lvl-data.level)*.16)*(1+(options.wave or 0)*.095))
     local rank=options.rank or 0
     local npc,hum=visual(kind,pos,lvl,hp,rank)
+    if not npc or not hum then
+        warn("[ALNAIR] Falha ao gerar inimigo com rig oficial Roblox:",kind)
+        return nil
+    end
     npc.Name=data.name.."_"..counter
     local title=rank>0 and ("Capitao "..data.name.." • "..rank) or (data.name.." • Nv. "..lvl)
     local record={
@@ -158,19 +199,15 @@ function EnemyDirector.spawn(kind,pos,options)
         xp=math.floor(data.xp*(1+.2*(lvl-data.level))),gold=math.floor(data.gold*(1+.11*(lvl-data.level))),
         behavior="patrol",lastAction=0,nextWander=0,attackAt=0,dead=false,
         lastHitter=nil,locked=nil,spawnTag=options.spawnTag,arena=options.arena,
-        motionPieces={},wanderPhase=rng:NextNumber(0,math.pi*2),
+        animationTracks={},animationState=nil,wanderPhase=rng:NextNumber(0,math.pi*2),
     }
     npc.Parent=enemyFolder
-    -- Malhas reais importadas pelo 3D Importer: preserve hitboxes invisiveis.
-    local imported=ArtAssets.actor(npc,kind,kind=="dragon" and 11 or kind=="warden" and 7.5 or 5.1)
-    local rootCFrame=npc:GetPivot()
-    for _,bodyPart in ipairs(npc:GetDescendants()) do
-        if bodyPart:IsA("BasePart") and bodyPart.Name~="HumanoidRootPart" then
-            if bodyPart.Name=="Arm" or bodyPart.Name=="Leg" or bodyPart.Name=="Head" or bodyPart.Name=="Asa" then
-                table.insert(record.motionPieces,{bodyPart=bodyPart,base=rootCFrame:ToObjectSpace(bodyPart.CFrame)})
-            end
-        end
-    end
+    record.animationTracks={
+        idle=npcTrack(hum,507766388,Enum.AnimationPriority.Idle,true),
+        walk=npcTrack(hum,507777826,Enum.AnimationPriority.Movement,true),
+        run=npcTrack(hum,507767714,Enum.AnimationPriority.Movement,true),
+        attack=npcTrack(hum,522635514,Enum.AnimationPriority.Action,false),
+    }
     living[npc]=record
     maxNPC+=1
     label(record)
@@ -208,7 +245,22 @@ function EnemyDirector.damage(record,player,damage)
     if record.hum.Health<=0 then removeRecord(record,player) end
     return true
 end
-function EnemyDirector.attackArea(player,range,damage,multi)
+function EnemyDirector.findTarget(player,range,aim)
+    local char=player.Character
+    local root=char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return nil end
+    local best,bestDistance=nil,range
+    for _,r in pairs(living) do
+        local delta=r.pos-root.Position
+        if not r.dead and (not r.owner or r.owner==player) and delta.Magnitude<bestDistance
+            and CombatChecks.facing(aim or root.CFrame.LookVector,Vector3.new(delta.X,0,delta.Z),false)
+            and CombatChecks.clearPath(Workspace,root.Position+Vector3.new(0,1,0),r.pos+Vector3.new(0,1,0),char,enemyFolder,enemyFolder) then
+            best,bestDistance=r,delta.Magnitude
+        end
+    end
+    return best
+end
+function EnemyDirector.attackArea(player,range,damage,multi,aim)
     local char=player.Character
     local rootPart=char and char:FindFirstChild("HumanoidRootPart")
     if not rootPart then return 0 end
@@ -219,8 +271,13 @@ function EnemyDirector.attackArea(player,range,damage,multi)
             local delta=r.pos-rootPart.Position
             local planar=Vector3.new(delta.X,0,delta.Z)
             if planar.Magnitude<=range and math.abs(delta.Y)<=22 then
-                local facing=planar.Magnitude<1 or rootPart.CFrame.LookVector:Dot(planar.Unit) > (multi and -.4 or -.25)
-                if facing and EnemyDirector.damage(r,player,damage) then hits+=1 end
+                local facing=CombatChecks.facing(aim or rootPart.CFrame.LookVector,planar,multi)
+                if facing and CombatChecks.clearPath(Workspace,
+                    rootPart.Position+Vector3.new(0,1.15,0),
+                    r.pos+Vector3.new(0,.45,0),char,enemyFolder,enemyFolder)
+                    and EnemyDirector.damage(r,player,damage) then
+                    hits+=1
+                end
             end
         end
     end
@@ -290,7 +347,12 @@ local function stepAI(record,dt,clock)
         if record.kind=="witch" and record.hum.Health<record.hum.MaxHealth*.33 and dist<14 then
             record.behavior="retreat"
             targetPosition=record.pos+(record.pos-root.Position).Unit*15
-        elseif dist>record.base.range+1.5 then
+        elseif dist>record.base.range+1.5
+            or not CombatChecks.clearPath(Workspace,
+                record.pos+Vector3.new(0,.9,0),
+                root.Position+Vector3.new(0,.9,0),
+                record.model,player.Character,enemyFolder) then
+            -- Never damage through walls even when enemy AI is close to player.
             record.behavior="hunt"
             targetPosition=root.Position
         else
@@ -306,6 +368,9 @@ local function stepAI(record,dt,clock)
                 end
                 local mitigation=player:GetAttribute("AlnairRunArmor") or 0
                 amount=math.max(1,math.floor(amount*(1-math.clamp(mitigation,0,.75))))
+                local network=game.ReplicatedStorage:FindFirstChild("AlnairGame")
+                local fx=network and network:FindFirstChild("CombatFX")
+                if fx then fx:FireAllClients(record.model,"enemy",1,CFrame.lookAt(record.pos,root.Position),root.Position) end
                 hum:TakeDamage(amount)
                 player:SetAttribute("AlnairLastEnemy",record.kind)
                 if hum.Health<=0 then
@@ -330,33 +395,34 @@ local function stepAI(record,dt,clock)
             local dir=delta.Unit
             local step=math.min(delta.Magnitude,dt*speed)
             local nextPosition=record.pos+dir*step
+            local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.FilterDescendantsInstances={enemyFolder}
+            local ground=Workspace:Raycast(nextPosition+Vector3.new(0,8,0),Vector3.new(0,-24,0),params)
+            if ground then
+                local foot=record.model:FindFirstChild("LeftFoot")
+                local r=record.model.PrimaryPart
+                local offset=foot and r and (r.Position.Y-foot.Position.Y+foot.Size.Y/2) or 3
+                nextPosition=Vector3.new(nextPosition.X,ground.Position.Y+offset,nextPosition.Z)
+            end
             local basis=CFrame.lookAt(nextPosition,nextPosition+dir)
             record.pos=nextPosition
             record.model:PivotTo(basis)
         end
     end
-    -- Animacao procedural de pernas, bracos e asas: modo repouso / deslocamento / ataque.
-    local rootCFrame=record.model:GetPivot()
-    local moving=record.behavior=="hunt" or record.behavior=="patrol" or record.behavior=="retreat"
-    local phase=clock*(moving and 7.8 or 2.3)+record.wanderPhase
-    local amplitude=moving and .38 or .035
-    local attackMotion=record.behavior=="attack" and math.sin(clock*12)*.55 or 0
-    for _,motion in ipairs(record.motionPieces) do
-        local part=motion.bodyPart
-        if part.Parent then
-            local sign=motion.base.Position.X>=0 and 1 or -1
-            local offset=CFrame.new()
-            if part.Name=="Arm" then
-                offset=CFrame.Angles(math.sin(phase+sign*math.pi)*amplitude+attackMotion,0,sign*.07)
-            elseif part.Name=="Leg" then
-                offset=CFrame.Angles(-math.sin(phase+sign*math.pi)*amplitude,0,0)
-            elseif part.Name=="Head" then
-                offset=CFrame.Angles(.035*math.sin(phase*.4),.06*math.sin(phase*.35),0)
-            elseif part.Name=="Asa" then
-                offset=CFrame.Angles(0,0,sign*.20*math.sin(phase*.45))
+    -- The official Animator drives R15 elbows, knees, wrists and hands.
+    -- Never rotate individual MeshParts or fabricate Motor6D joints.
+    local animationState=(record.behavior=="attack" and "attack")
+        or (record.behavior=="hunt" and "run")
+        or ((record.behavior=="patrol" or record.behavior=="retreat")
+            and "walk") or "idle"
+    if animationState~=record.animationState then
+        record.animationState=animationState
+        for key,track in pairs(record.animationTracks) do
+            if track and track.IsPlaying and key~=animationState then
+                track:Stop(.13)
             end
-            part.CFrame=rootCFrame*motion.base*offset
         end
+        local selected=record.animationTracks[animationState]
+        if selected and not selected.IsPlaying then selected:Play(.14,1,1)end
     end
     record.model:SetAttribute("AIState",record.behavior)
 end

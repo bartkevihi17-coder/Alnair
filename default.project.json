@@ -4,18 +4,70 @@
     "$className": "DataModel",
     "ReplicatedStorage": {
       "$className": "ReplicatedStorage",
-      "AlnairShared": { "$path": "src/shared" }
+      "AlnairShared": {
+        "$path": "src/shared"
+      },
+      "AlnairWeapons": {
+        "$path": "src/assets/AlnairWeapons.rbxm"
+      }
     },
     "ServerScriptService": {
       "$className": "ServerScriptService",
-      "AlnairServer": { "$path": "src/server" }
+      "AlnairServer": {
+        "$path": "src/server"
+      }
     },
     "StarterPlayer": {
       "$className": "StarterPlayer",
-      "$properties": { "LoadCharacterAppearance": false },
+      "$properties": {
+        "LoadCharacterAppearance": false
+      },
       "StarterPlayerScripts": {
         "$className": "StarterPlayerScripts",
-        "AlnairClient": { "$path": "src/client" }
+        "AlnairClient": {
+          "$path": "src/client"
+        }
+      }
+    },
+    "Lighting": {
+      "$className": "Lighting",
+      "$properties": {
+        "LightingStyle": "Realistic",
+        "PrioritizeLightingQuality": true,
+        "GlobalShadows": true,
+        "ShadowSoftness": 0.29,
+        "Brightness": 2.25,
+        "ClockTime": 16.0,
+        "GeographicLatitude": 36,
+        "Ambient": [
+          0.2196078431372549,
+          0.2627450980392157,
+          0.3215686274509804
+        ],
+        "OutdoorAmbient": [
+          0.396078431372549,
+          0.4549019607843137,
+          0.49411764705882355
+        ],
+        "EnvironmentDiffuseScale": 0.55,
+        "EnvironmentSpecularScale": 0.38,
+        "ExposureCompensation": 0.02
+      }
+    },
+    "ServerStorage": {
+      "$className": "ServerStorage",
+      "AlnairArtV05": {
+        "$path": "src/serverassets/AlnairArtV05.rbxmx"
+      }
+    },
+    "Workspace": {
+      "$className": "Workspace",
+      "$properties": {
+        "StreamingEnabled": true,
+        "StreamingMinRadius": 64,
+        "StreamingTargetRadius": 160,
+        "StreamOutBehavior": "Opportunistic",
+        "StreamingIntegrityMode": "PauseOutsideLoadedArea"
       }
     }
   }

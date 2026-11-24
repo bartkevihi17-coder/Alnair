@@ -1,401 +1,376 @@
 --!strict
--- Aparência procedural: não precisa de IDs externos de roupas ou acessórios.
-local Catalog = require(script.Parent.Catalog)
-local MeshAccessories = require(script.Parent.MeshAccessories)
-local MeshWardrobe = require(script.Parent.MeshWardrobe)
-local Appearance = {}
+-- Aparência de personagens ALNAIR com ativos REAIS do Roblox.
+-- HumanoidDescription aplica rosto (Face), cabelo (HairAccessory),
+-- chapéu (HatAccessory), Shirt, Pants e cores do corpo no rig NATIVO R15 BLOCKY.
+-- Nunca desenhar rosto com GUI ou modelar cabelo/armadura com Parts.
+local Catalog=require(script.Parent:WaitForChild("Catalog"))
+local BlockyRig=require(script.Parent:WaitForChild("BlockyRig"))
+local WeaponRender=require(script.Parent:WaitForChild("WeaponRender"))
+local Appearance={}
 
-local function find(model, names)
-    for _, name in ipairs(names) do
-        local p = model:FindFirstChild(name)
-        if p and p:IsA("BasePart") then return p end
-    end
-    return nil
+local function asset(group,id,fallback)
+    local found=Catalog.findOption(group,id)
+    return found and found.assetId or fallback or 0
 end
 
-local function colorPart(item, color)
-    if item and item:IsA("BasePart") then
-        item.Color = color
-        item.Material = Enum.Material.SmoothPlastic
-    end
-end
+function Appearance.description(rawSelection,loadout)
+    local choice=Catalog.clean(rawSelection)
+    local ap=choice.appearance
+    local race=Catalog.Races[choice.race]
+    local description=Instance.new("HumanoidDescription")
+    description.Name="AlnairRobloxAvatar"
+    description.UseAvatarSettings=false
+    -- Avatar R15 oficial articulado, com silhueta classica BLOCKY:
+    description.Head=0
+    description.Torso=0
+    description.LeftArm=0
+    description.RightArm=0
+    description.LeftLeg=0
+    description.RightLeg=0
+    description.BodyTypeScale=0
+    description.ProportionScale=0
+    description.HeightScale=1
+    description.WidthScale=1
+    description.DepthScale=1
+    description.HeadScale=1
 
-local function attach(model, target, size, transform, color, name, shape, material)
-    if not target then return nil end
-    local p = Instance.new(shape == "wedge" and "WedgePart" or "Part")
-    p.Name = "Alnair_" .. name
-    p.Size = size
-    p.CFrame = target.CFrame * transform
-    p.Color = color
-    p.Material = material or Enum.Material.SmoothPlastic
-    p.CanCollide = false
-    p.CanTouch = false
-    p.CanQuery = false
-    p.Massless = true
-    p.CastShadow = false
-    if shape == "ball" then p.Shape = Enum.PartType.Ball end
-    if shape == "cylinder" then p.Shape = Enum.PartType.Cylinder end
-    p.Anchored = target.Anchored
-    p.Parent = model
-    local weld = Instance.new("WeldConstraint")
-    weld.Part0 = target
-    weld.Part1 = p
-    weld.Parent = p
-    return p
-end
+    local set=Catalog.findOption("set",ap.set)
+    local upperId=set and set.upper or ap.upper
+    local lowerId=set and set.lower or ap.lower
+    local shirt=asset("upper",upperId,607785314)
+    local pants=asset("lower",lowerId,144076760)
 
-local function makeFace(head, id, race)
-    local old = head:FindFirstChild("AlnairFace")
-    if old then old:Destroy() end
-    for _, v in ipairs(head:GetChildren()) do
-        if v:IsA("Decal") and v.Face == Enum.NormalId.Front then v:Destroy() end
-    end
-
-    local gui = Instance.new("SurfaceGui")
-    gui.Name = "AlnairFace"
-    gui.Face = Enum.NormalId.Front
-    gui.Adornee = head
-    gui.CanvasSize = Vector2.new(256, 256)
-    gui.LightInfluence = 0
-    gui.AlwaysOnTop = false
-    gui.Parent = head
-
-    local ink = race == "undead" and Color3.fromRGB(37, 72, 61) or Color3.fromRGB(48, 44, 43)
-    if race == "witch" then ink = Color3.fromRGB(57, 31, 91) end
-    local function mark(x, y, w, h, c, rotation, round)
-        local f = Instance.new("Frame")
-        f.BorderSizePixel = 0
-        f.BackgroundColor3 = c or ink
-        f.Position = UDim2.fromOffset(x, y)
-        f.Size = UDim2.fromOffset(w, h)
-        f.Rotation = rotation or 0
-        f.Parent = gui
-        if round then
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(1, 0)
-            corner.Parent = f
-        end
-        return f
-    end
-
-    local wide = id == "shadow"
-    mark(61, 85, wide and 34 or 25, 14, ink, id == "determined" and 11 or 0, true)
-    mark(161, 85, wide and 34 or 25, 14, ink, id == "determined" and -11 or 0, true)
-    if id == "mysterious" or id == "shadow" then
-        mark(59, 70, 39, 7, ink, -8, true)
-        mark(158, 70, 39, 7, ink, 8, true)
-    end
-
-    if id == "happy" then
-        mark(105, 166, 45, 12, ink, 0, true)
-        mark(113, 163, 30, 9, Color3.fromRGB(204, 124, 114), 0, true)
-    elseif id == "determined" or id == "shadow" then
-        mark(105, 160, 47, 7, ink, 0, true)
-    elseif id == "mysterious" then
-        mark(115, 162, 31, 7, ink, 14, true)
-    else
-        mark(106, 160, 45, 8, ink, 0, true)
-        if id == "serene" then
-            mark(108, 155, 12, 7, ink, -15, true)
-            mark(136, 155, 12, 7, ink, 15, true)
+    if typeof(loadout)=="table" then
+        local armor=tostring(loadout.armor or loadout.chest or "")
+        if armor:find("iron") or armor:find("steel") or armor:find("metal") then
+            shirt=144076358
+        elseif armor:find("leather") then
+            shirt=398633584
         end
     end
-    if id == "warrior" then
-        mark(185, 72, 6, 88, Color3.fromRGB(146, 80, 70), -26, true)
-        mark(177, 115, 18, 4, Color3.fromRGB(146, 80, 70), -26, true)
+    description.Shirt=shirt
+    description.Pants=pants
+    description.Face=asset("face",ap.face,7074764)
+
+    local hairId=asset("hair",ap.hair,63690008)
+    local hatStyle=ap.hat=="class" and Catalog.ClassHeadwear[choice.class]
+        or ap.hat
+    local hatId=asset("hat",hatStyle,0)
+    -- Não colocar duas geometrias de cabelo/chapéu sem que o próprio
+    -- avatar engine gerencie os Attachments e o encaixe real.
+    description.HairAccessory=hairId>0 and hatStyle~="knighthelm" and hatStyle~="hood" and tostring(hairId) or ""
+    description.HatAccessory=hatId>0 and tostring(hatId) or ""
+    -- Cinco itens gratuitos REAIS de costas por personagem.
+    -- Avatar service valida IDs e realiza attachment. Não renderizar
+    -- "falsas" espadas ou mochilas de caixas.
+    description.BackAccessory=""
+    description.ShouldersAccessory=""
+    -- SET COMPLETO DE ROUPA VOLUMÉTRICA 3D: camadas deformáveis do
+    -- Roblox com WrapLayer, na ordem 1 (pernas), 2 (malha), 3 (couro).
+    -- A flag false preserva os 5 BackAccessories e demais itens rígidos.
+    -- Classic clothing preserves every blocky R15 body part.
+    local outfits={
+        warrior={71055892113200,79252076528791},
+        assassin={124692451753451,81594562434031},
+        mage={87030750261915,139475784344355},
+        fighter={8982554536,123516625687997},
+        samurai={15647400846,15647402807},
+    }
+    local outfit=outfits[choice.class]
+    local layers={
+        warrior={{107274850047755,Enum.AccessoryType.Pants},{16100249133,Enum.AccessoryType.Jacket}},
+        assassin={{84360481650502,Enum.AccessoryType.Pants},{82732990077744,Enum.AccessoryType.Jacket}},
+        mage={},
+        fighter={{83645533605092,Enum.AccessoryType.Pants},{127231703676326,Enum.AccessoryType.DressSkirt}},
+        samurai={{9038817955,Enum.AccessoryType.Jacket}},
+    }
+    local accessories={}
+    for i,item in ipairs(layers[choice.class] or {}) do
+        table.insert(accessories,{AssetId=item[1],AccessoryType=item[2],Order=i,Puffiness=0})
     end
-    if race == "undead" then
-        mark(83, 132, 12, 7, Color3.fromRGB(81, 115, 103), 30, true)
-        mark(165, 140, 20, 5, Color3.fromRGB(81, 115, 103), -20, true)
+    description:SetAccessories(accessories,false)
+    if outfit then description.Shirt=outfit[1];description.Pants=outfit[2] end
+    if choice.class=="warrior" then
+        description.HatAccessory="2761428180"
+        description.HairAccessory=""
     end
+    local skin=race.color
+    description.HeadColor=skin
+    description.LeftArmColor=skin
+    description.RightArmColor=skin
+    description.TorsoColor=Color3.fromRGB(118,108,103)
+    description.LeftLegColor=Color3.fromRGB(81,79,77)
+    description.RightLegColor=Color3.fromRGB(81,79,77)
+    return description
 end
 
-local function hair(model, head, style, color)
-    if style == "bald" then return end
-    local sx, sy, sz = head.Size.X, head.Size.Y, head.Size.Z
-    local top = sy / 2
-    if style == "mohawk" then
-        for i = -2, 2 do
-            attach(model, head, Vector3.new(.35, .5, .48), CFrame.new(0, top + .22, i*.35), color, "HairSpike", "wedge")
-        end
-        return
-    end
-    attach(model, head, Vector3.new(sx*1.06,.30,sz*1.07), CFrame.new(0,top+.09,0), color, "HairCap")
-    if style == "short" then
-        for i = -1, 1 do
-            attach(model, head, Vector3.new(.5,.22,.32), CFrame.new(i*.55,top+.17,-sz*.36), color, "HairTuft", "wedge")
-        end
-    elseif style == "fringe" then
-        for i = -1, 1 do
-            attach(model, head, Vector3.new(.58,.55,.37), CFrame.new(i*.57,top-.19,-sz*.52), color, "HairFringe", "wedge")
-        end
-    elseif style == "long" then
-        attach(model, head, Vector3.new(sx*.88,1.45,.36), CFrame.new(0,-.54,sz*.52), color, "HairBack")
-        attach(model, head, Vector3.new(.30,1.02,.33), CFrame.new(-sx*.54,-.25,0), color, "HairSide")
-        attach(model, head, Vector3.new(.30,1.02,.33), CFrame.new(sx*.54,-.25,0), color, "HairSide")
-    elseif style == "bun" then
-        attach(model, head, Vector3.new(.72,.72,.72), CFrame.new(0,top+.26,sz*.38), color, "HairBun", "ball")
-    end
-end
-
-local function decorateClothes(model, torso, appearance, upperId, upperColor, accent)
-    if not torso or not upperColor or upperId == "bare" then return end
-    local plateColor = upperId == "armor" and Color3.fromRGB(159,166,175) or accent
-    attach(model, torso, Vector3.new(torso.Size.X*.42,.18,.11), CFrame.new(0,torso.Size.Y*.20,-torso.Size.Z*.52), plateColor, "ChestPlate")
-    attach(model, torso, Vector3.new(torso.Size.X*.68,.15,torso.Size.Z*1.07), CFrame.new(0,-torso.Size.Y*.36,0), Color3.fromRGB(56,47,39), "Belt")
-    if upperId == "robe" then
-        attach(model, torso, Vector3.new(.2,.26,.12), CFrame.new(0,.18,-torso.Size.Z*.55), accent, "RuneGem", "ball", Enum.Material.Neon)
-    elseif upperId == "armor" then
-        attach(model, torso, Vector3.new(torso.Size.X*.65,.5,.13), CFrame.new(0,0,-torso.Size.Z*.55), upperColor, "ArmorPlate")
-    end
-end
-
-local function addBoots(model, character, feetId, skin)
-    local option = Catalog.findOption("feet", feetId)
-    if not option or feetId == "barefoot" then return end
-    local left = find(character, { "Left Leg", "LeftLowerLeg", "LeftFoot" })
-    local right = find(character, { "Right Leg", "RightLowerLeg", "RightFoot" })
-    for _, leg in ipairs({left, right}) do
-        if leg then
-            local h = math.min(leg.Size.Y*.49,.65)
-            attach(model, leg, Vector3.new(leg.Size.X*1.05,h,leg.Size.Z*1.1), CFrame.new(0,-leg.Size.Y/2+h/2,0), option.color or skin, "Footwear")
-        end
-    end
-end
-
-local STEEL = Color3.fromRGB(189,202,210)
-local WOOD = Color3.fromRGB(81,55,43)
-local GOLD = Color3.fromRGB(220,165,87)
-
-local function sword(model, hand, short, katana)
-    if not hand then return end
-    local z = -.38
-    local handleLen = short and .55 or .8
-    attach(model, hand, Vector3.new(.22,handleLen,.23), CFrame.new(0,-.67,z), WOOD, "Grip")
-    attach(model, hand, Vector3.new(short and .52 or .85,.14,.26), CFrame.new(0,-.25,z), GOLD, "Crossguard")
-    local length = short and 1.0 or (katana and 2.15 or 1.9)
-    attach(model, hand, Vector3.new(katana and .19 or .29,length,.16), CFrame.new(0,length/2-.13,z), STEEL, "Blade", "wedge", Enum.Material.Metal)
-end
-
-local function shield(model, hand)
-    if not hand then return end
-    attach(model, hand, Vector3.new(1.35,1.6,.22), CFrame.new(0,-.65,-.45), Color3.fromRGB(105,115,129), "Shield", nil, Enum.Material.Metal)
-    attach(model, hand, Vector3.new(.33,.93,.26), CFrame.new(0,-.65,-.61), GOLD, "ShieldMark")
-end
-
-local function staff(model, hand)
-    if not hand then return end
-    attach(model, hand, Vector3.new(.19,3.05,.19), CFrame.new(0,.38,-.4), WOOD, "Staff", nil, Enum.Material.Wood)
-    attach(model, hand, Vector3.new(.58,.58,.58), CFrame.new(0,2.03,-.4), Color3.fromRGB(102,171,239), "StaffCrystal", "ball", Enum.Material.Neon)
-end
-
-local function weapons(model, character, class)
-    local right = find(character, { "RightHand", "Right Arm", "RightLowerArm" })
-    local left = find(character, { "LeftHand", "Left Arm", "LeftLowerArm" })
-    if class == "warrior" then
-        sword(model, right, false, false)
-        shield(model, left)
-    elseif class == "assassin" then
-        sword(model, right, true, false)
-        sword(model, left, true, false)
-    elseif class == "mage" then
-        staff(model, right)
-    elseif class == "samurai" then
-        sword(model, right, false, true)
-    elseif class == "fighter" then
-        -- A classe Lutador não recebe arma; os punhos ficam livres.
-    end
-end
-
--- Rosto orgânico: poses faciais no rig importado, sem sobrepor imagens de
--- sobrancelhas ou mouthParts quadrados ao modelo anatômico.
-local EXPRESSIONS = {
-    serene = {LeftLipCornerPuller=.18, RightLipCornerPuller=.18},
-    determined = {LeftBrowLowerer=.58,RightBrowLowerer=.58,LipPresser=.48},
-    mysterious = {LeftOuterBrowRaiser=.48,RightBrowLowerer=.20,RightLipCornerPuller=.16},
-    happy = {LeftLipCornerPuller=.77,RightLipCornerPuller=.77,LeftCheekRaiser=.34,RightCheekRaiser=.34},
-    warrior = {LeftBrowLowerer=.74,RightBrowLowerer=.42,LipPresser=.63},
-    shadow = {LeftBrowLowerer=.83,RightBrowLowerer=.83,LeftEyeClosed=.16,RightEyeClosed=.16},
+-- Organiza os CINCO acessórios oficiais para ficarem visíveis como
+-- talismãs de expedição, em vez de cinco meshes grandes sobrepostas no
+-- mesmo BackAttachment. A malha continua 100% original do catálogo.
+local BACK_LAYOUT={
+    -- Five official Roblox accessories stay equipped, but read as
+    -- small travelling charms instead of giant overlapping backpacks.
+    DogBackpack={x=0,y=-.12,z=.08,scale=.41},
+    ["Accessory (Roblox Aura)"]={x=0,y=.16,z=.14,scale=.20},
+    ["Accessory (Green_Block)"]={x=-.45,y=.27,z=.10,scale=.13},
+    ["Accessory (Red_Block)"]={x=.45,y=.27,z=.10,scale=.13},
+    ["Accessory (Yellow_Block)"]={x=-.45,y=-.27,z=.10,scale=.13},
+    ["Accessory (Silver_Block)"]={x=.45,y=-.27,z=.10,scale=.13},
 }
-local FACIAL_KEYS = {
-    "LeftLipCornerPuller","RightLipCornerPuller",
-    "LeftBrowLowerer","RightBrowLowerer",
-    "LeftOuterBrowRaiser","RightOuterBrowRaiser",
-    "LipPresser","LeftCheekRaiser","RightCheekRaiser",
-    "LeftEyeClosed","RightEyeClosed"
-}
-
-function Appearance.applyFaceControls(character, faceId)
-    local head = character and character:FindFirstChild("Head")
-    if not head then return end
-    local controls = head:FindFirstChildOfClass("FaceControls")
-    if not controls then return end
-    for _,prop in ipairs(FACIAL_KEYS) do
-        pcall(function() controls[prop]=0 end)
-    end
-    for prop,value in pairs(EXPRESSIONS[faceId] or EXPRESSIONS.serene) do
-        pcall(function() controls[prop]=value end)
-    end
-end
-function Appearance.apply(character, rawSelection)
-    if not character then return end
-    local selection = Catalog.clean(rawSelection)
-    local isOrganic = character:FindFirstChild("LeftUpperArm") ~= nil and character:FindFirstChild("RightLowerLeg") ~= nil
-    local race = Catalog.Races[selection.race]
-    local ap = selection.appearance
-    local set = Catalog.findOption("set", ap.set)
-    local upperId = (set and set.upper) or ap.upper
-    local lowerId = (set and set.lower) or ap.lower
-    local upper = Catalog.findOption("upper", upperId)
-    local lower = Catalog.findOption("lower", lowerId)
-    local skin = race.color
-    local upperColor = upper and upper.color or skin
-    local lowerColor = lower and lower.color or skin
-
-    for _, item in ipairs(character:GetDescendants()) do
-        if item.Name:sub(1,7) == "Alnair_" or item.Name == "AlnairFace" then
-            item:Destroy()
-        end
-    end
-
-    for _, item in ipairs(character:GetChildren()) do
-        if item:IsA("Accessory") or item:IsA("Shirt") or item:IsA("Pants") or item:IsA("ShirtGraphic") then
-            item:Destroy()
-        end
-        if item:IsA("BasePart") then
-            local name = item.Name:lower()
-            if name == "head" or name:find("arm") or name:find("hand") then
-                colorPart(item, skin)
-            elseif name:find("torso") then
-                colorPart(item, upperColor)
-            elseif name:find("leg") or name:find("foot") then
-                colorPart(item, lowerColor)
-            end
-        end
-    end
-
-    local head = find(character, { "Head" })
-    local torso = find(character, { "Torso", "UpperTorso" })
-    if head then
-        if not isOrganic then makeFace(head, ap.face, selection.race) end
-        if isOrganic then Appearance.applyFaceControls(character,ap.face) end
-        local hairColor = selection.race == "undead" and Color3.fromRGB(99,119,113)
-            or selection.race == "witch" and Color3.fromRGB(71,54,95)
-            or Color3.fromRGB(64,48,43)
-        MeshAccessories.hair(character, head, ap.hair, hairColor)
-        MeshAccessories.eyebrows(character, head, hairColor)
-        MeshAccessories.beard(character, head, ap.beard, hairColor)
-        MeshAccessories.ears(character, head, ap.ears, selection.race, skin)
-        if selection.race == "witch" and not isOrganic then
-            attach(character, head, Vector3.new(.25,.22,.08), CFrame.new(0,.22,-head.Size.Z*.52), race.accent, "ArcaneMark", "ball", Enum.Material.Neon)
-        end
-    end
-    if isOrganic then
-        -- R15 real vindo do Avatar Setup: nada de peitorais ou botas quadradas.
-        local feetOption = Catalog.findOption("feet", ap.feet)
-        for _, partName in ipairs({"LeftFoot", "RightFoot"}) do
-            local p = character:FindFirstChild(partName)
-            if p and p:IsA("BasePart") then
-                p.Color = (feetOption and feetOption.color) or skin
-            end
-        end
-    else
-        -- Compatibilidade com o prototipo R6 anterior.
-        decorateClothes(character, torso, ap, upperId, upperColor, race.accent)
-        addBoots(character, character, ap.feet, skin)
-        weapons(character, character, selection.class)
-    end
-    if isOrganic then MeshWardrobe.apply(character,selection,nil) end
-end
-
--- Reaplica apenas a roupa e os equipamentos, sem apagar cabelo, rosto ou barba.
-function Appearance.refreshOutfit(character,selection,equipped)
-    if character and character:FindFirstChild("LeftUpperArm") then
-        MeshWardrobe.apply(character,Catalog.clean(selection),equipped)
-    end
-end
-
--- Um manequim clássico R6 construído localmente para o ViewportFrame da UI.
-function Appearance.createPreview(parent)
-    -- MeshParts R15 reais para a pre-visualizacao. A cena de ViewportFrame
-    -- nao precisa carregar Humanoid, scripts nem articulacoes do jogo.
-    local source = script.Parent:FindFirstChild("AlnairRiggedBody")
-    if source and source:IsA("Model") then
-        local sourceRoot = source:FindFirstChild("HumanoidRootPart")
-        if sourceRoot and sourceRoot:IsA("BasePart") then
-            local rig = Instance.new("Model")
-            rig.Name = "PreviewAvatar"
-            -- Importacao da Quaternius fica longe da origem em coordenadas
-            -- do Studio. Relocamos cada malha individualmente para evitar
-            -- que a camera do WorldModel as deixe fora do enquadramento.
-            local base = CFrame.new(0, 2.55, 0)
-            for _, item in ipairs(source:GetChildren()) do
-                if item:IsA("MeshPart") then
-                    local mesh = item:Clone()
-                    for _, child in ipairs(mesh:GetDescendants()) do
-                        if child:IsA("Constraint")
-                            or child:IsA("Script")
-                            or child:IsA("LocalScript")
-                            then
-                            child:Destroy()
+function Appearance.arrangeAccessories(character,selection)
+    if not character then return {back=0,shoulder=0} end
+    local backCount,shoulderCount=0,0
+    for _,acc in ipairs(character:GetChildren()) do
+        if acc:IsA("Accessory") then
+            local handle=acc:FindFirstChild("Handle")
+            local weld=handle and handle:FindFirstChild("AccessoryWeld")
+            if acc.AccessoryType==Enum.AccessoryType.Back then
+                backCount+=1
+                local cfg=BACK_LAYOUT[acc.Name]
+                if cfg and handle and handle:IsA("BasePart") then
+                    -- Só modificar a proporção da malha REAL, nunca gerar peça.
+                    handle.Size=handle.Size*cfg.scale
+                    if weld and weld:IsA("Weld")
+                        and weld.Part0 and weld.Part1 then
+                        local shift=CFrame.new(cfg.x,cfg.y,cfg.z)
+                        if weld.Part0==handle then
+                            weld.C1=shift*weld.C1
+                        elseif weld.Part1==handle then
+                            weld.C0=shift*weld.C0
                         end
                     end
-                    mesh.CFrame = base * sourceRoot.CFrame:ToObjectSpace(item.CFrame)
-                    mesh.Anchored = true
-                    mesh.CanCollide = false
-                    mesh.CanTouch = false
-                    mesh.CanQuery = false
-                    mesh.Parent = rig
+                end
+            elseif acc.AccessoryType==Enum.AccessoryType.Shoulder then
+                shoulderCount+=1
+            end
+            -- No WorldModel o Handle ancorado pode não acompanhar o
+            -- PivotTo. Recalcular pelo AccessoryWeld do próprio Roblox.
+            if handle and handle:IsA("BasePart") and handle.Anchored and weld
+                and weld:IsA("Weld") and weld.Part0 and weld.Part1 then
+                if weld.Part0==handle then
+                    handle.CFrame=weld.Part1.CFrame*weld.C1*weld.C0:Inverse()
+                elseif weld.Part1==handle then
+                    handle.CFrame=weld.Part0.CFrame*weld.C0*weld.C1:Inverse()
                 end
             end
-            rig.Parent = parent
-            -- Pose natural no menu: os meshes R15 chegam do Studio em T-pose.
-            -- Mover a cadeia inteira em torno da articulacao anatomica real.
-            local function poseChain(parentPart,jointName,names,angle)
-                local host=rig:FindFirstChild(parentPart)
-                local hinge=host and host:FindFirstChild(jointName)
-                if not hinge or not hinge:IsA("Attachment") then return end
-                local point=hinge.WorldPosition
-                local rotate=CFrame.new(point)*CFrame.Angles(0,0,angle)*CFrame.new(-point)
-                for _,pieceName in ipairs(names) do
-                    local limb=rig:FindFirstChild(pieceName)
-                    if limb and limb:IsA("BasePart") then
-                        limb.CFrame=rotate*limb.CFrame
+        end
+    end
+    local layeredCount=0
+    local jacketCount=0
+    for _,obj in ipairs(character:GetChildren())do
+        if obj:IsA("Accessory") then
+            local layer=obj:FindFirstChildWhichIsA("WrapLayer",true)
+            if layer then
+                layeredCount+=1
+                if obj.AccessoryType==Enum.AccessoryType.Jacket then
+                    jacketCount+=1
+                end
+            end
+        end
+    end
+    character:SetAttribute("AlnairBackAccessoryCount",backCount)
+    character:SetAttribute("AlnairShoulderAccessoryCount",shoulderCount)
+    -- Cloth is a mesh belonging to Roblox, but Roblox's wrapping cage
+    -- remains intact. The tint changes its base Color, never the mesh.
+    local selectionData=Catalog.clean(selection)
+    local tint=Catalog.tint3D(selectionData.class,
+        selectionData.appearance.outer3d)
+    if tint then
+        for _,acc in ipairs(character:GetChildren()) do
+            if acc:IsA("Accessory") and
+                acc.AccessoryType==Enum.AccessoryType.DressSkirt then
+                for _,piece in ipairs(acc:GetDescendants()) do
+                    if piece:IsA("SurfaceAppearance") then
+                        -- O ColorMap opaco da roupa Roblox esconde a tintura.
+                        -- Retirar somente o shader externo, conservando
+                        -- a malha 3D ORIGINAL, WrapLayer e encaixes Roblox.
+                        piece:Destroy()
+                    elseif piece:IsA("MeshPart") then
+                        piece.Material=Enum.Material.Fabric
+                        piece.Color=tint
+                        -- As malhas gratuitas originais são vestidos curtos.
+                        -- Ajuste vertical da MESMA malha para formar uma
+                        -- veste comprida (mago) ou hakama (samurai).
+                        local stretch=selectionData.class=="mage" and 1.55 or 1.52
+                        piece.Size=Vector3.new(piece.Size.X,
+                            piece.Size.Y*stretch,piece.Size.Z)
                     end
                 end
             end
-            poseChain("UpperTorso","LeftShoulderRigAttachment",
-                {"LeftUpperArm","LeftLowerArm","LeftHand"},math.rad(73))
-            poseChain("UpperTorso","RightShoulderRigAttachment",
-                {"RightUpperArm","RightLowerArm","RightHand"},math.rad(-73))
-            poseChain("LowerTorso","LeftHipRigAttachment",
-                {"LeftUpperLeg","LeftLowerLeg","LeftFoot"},math.rad(-4))
-            poseChain("LowerTorso","RightHipRigAttachment",
-                {"RightUpperLeg","RightLowerLeg","RightFoot"},math.rad(4))
-            return rig
         end
     end
+    character:SetAttribute("AlnairArmor3DLayers",layeredCount)
+    character:SetAttribute("AlnairArmor3DJackets",jacketCount)
+    return {back=backCount,shoulder=shoulderCount,layered=layeredCount,
+        jacket=jacketCount}
+end
 
-    local rig = Instance.new("Model")
-    rig.Name = "PreviewAvatar"
-    for _, info in ipairs({
-        {"Torso",Vector3.new(2,2,1),Vector3.new(0,2.8,0)},
-        {"Head",Vector3.new(2,1,1),Vector3.new(0,4.4,0)},
-        {"Left Arm",Vector3.new(1,2,1),Vector3.new(-1.55,2.8,0)},
-        {"Right Arm",Vector3.new(1,2,1),Vector3.new(1.55,2.8,0)},
-        {"Left Leg",Vector3.new(1,2,1),Vector3.new(-.53,.8,0)},
-        {"Right Leg",Vector3.new(1,2,1),Vector3.new(.53,.8,0)},
-    }) do
+
+-- Stylized 3-D robe panels are welded to native R15 torso/leg/arm bones.
+-- The old free-floating layered jacket was deliberately removed for mage.
+-- Each hem follows its own articulated limb (no independent physics/anchoring).
+local function rigMageCoat(character)
+    local folder=character:FindFirstChild("AlnairMageRiggedCoat")
+    if folder then folder:Destroy() end
+    local upper=character:FindFirstChild("UpperTorso")
+    local waist=character:FindFirstChild("LowerTorso")
+    if not upper or not waist then return end
+    folder=Instance.new("Folder")
+    folder.Name="AlnairMageRiggedCoat"
+    folder.Parent=character
+    local navy=Color3.fromRGB(43,54,117)
+    local cloth=Color3.fromRGB(32,42,93)
+    local gold=Color3.fromRGB(197,154,94)
+    local function panel(name,body,offset,size,color)
+        if not body or not body:IsA("BasePart") then return end
         local part=Instance.new("Part")
-        part.Name=info[1]
-        part.Size=info[2]
-        part.CFrame=CFrame.new(info[3])
-        part.Anchored=true
+        part.Name=name
+        part.Material=Enum.Material.Fabric
+        part.Color=color
+        part.Size=size
+        part.CFrame=body.CFrame*offset
+        part.Anchored=false
+        part.Massless=true
         part.CanCollide=false
-        part.Parent=rig
+        part.CanTouch=false
+        part.CanQuery=false
+        part.CastShadow=true
+        part.Parent=folder
+        local weld=Instance.new("WeldConstraint")
+        weld.Name="MageRobeJoint"
+        weld.Part0=body
+        weld.Part1=part
+        weld.Parent=part
+        return part
     end
-    rig.Parent=parent
-    return rig
+    -- Open-front upper tabard, with gold piping around the neckline.
+    panel("UpperCoatLeft",upper,CFrame.new(-.49,-.03,-upper.Size.Z*.5-.13),Vector3.new(.94,1.72,.19),navy)
+    panel("UpperCoatRight",upper,CFrame.new(.49,-.03,-upper.Size.Z*.5-.13),Vector3.new(.94,1.72,.19),navy)
+    panel("UpperCoatBack",upper,CFrame.new(0,-.08,upper.Size.Z*.5+.14),Vector3.new(1.93,1.7,.19),cloth)
+    panel("GoldTrimLeft",upper,CFrame.new(-.095,.05,-upper.Size.Z*.5-.265),Vector3.new(.085,1.4,.075),gold)
+    panel("GoldTrimRight",upper,CFrame.new(.095,.05,-upper.Size.Z*.5-.265),Vector3.new(.085,1.4,.075),gold)
+    panel("GoldChestSigil",upper,CFrame.new(0,.31,-upper.Size.Z*.5-.29),Vector3.new(.3,.3,.08),gold)
+    panel("Belt",waist,CFrame.new(0,.25,-waist.Size.Z*.5-.145),Vector3.new(1.7,.23,.22),gold)
+    for _,side in ipairs({"Left","Right"}) do
+        local thigh=character:FindFirstChild(side.."UpperLeg")
+        local shin=character:FindFirstChild(side.."LowerLeg")
+        local arm=character:FindFirstChild(side.."UpperArm")
+        local forearm=character:FindFirstChild(side.."LowerArm")
+        if thigh then
+            panel(side.."RobeFrontThigh",thigh,CFrame.new(0,-.68,-thigh.Size.Z*.5-.16),Vector3.new(1.12,2.35,.23),navy)
+            panel(side.."RobeBackThigh",thigh,CFrame.new(0,-.67,thigh.Size.Z*.5+.15),Vector3.new(1.12,2.35,.22),cloth)
+            local sideDirection=side=="Left" and -1 or 1
+            panel(side.."RobeSideThigh",thigh,CFrame.new(sideDirection*(thigh.Size.X*.5+.12),-.64,0),Vector3.new(.17,2.2,thigh.Size.Z+.32),navy)
+            panel(side.."GoldThighHem",thigh,CFrame.new(0,-1.82,-thigh.Size.Z*.5-.30),Vector3.new(1.12,.11,.25),gold)
+            panel(side.."GoldBackHem",thigh,CFrame.new(0,-1.82,thigh.Size.Z*.5+.30),Vector3.new(1.12,.11,.25),gold)
+        end
+        if shin then
+            panel(side.."RobeShin",shin,CFrame.new(0,.03,-shin.Size.Z*.5-.15),Vector3.new(.88,1.8,.19),cloth)
+            panel(side.."RobeShinHem",shin,CFrame.new(0,-.82,-shin.Size.Z*.5-.26),Vector3.new(.9,.12,.2),gold)
+        end
+        if arm then
+            panel(side.."RobeSleeve",arm,CFrame.new(0,-.05,0),arm.Size+Vector3.new(.24,-.18,.24),navy)
+        end
+        if forearm then
+            panel(side.."RobeCuff",forearm,CFrame.new(0,-forearm.Size.Y*.34,0),Vector3.new(forearm.Size.X+.29,.29,forearm.Size.Z+.29),gold)
+        end
+    end
+    character:SetAttribute("AlnairMageCoatRigged",true)
+end
+
+local function removeLegacyFakeParts(character)
+    -- Migracao única dos sistemas anteriores; jamais apagar acessórios
+    -- reais, decal oficial 'face', Shirt, Pants ou CharacterMesh do Roblox.
+    for _,item in ipairs(character:GetDescendants()) do
+        if item.Name=="AlnairFace" and item:IsA("SurfaceGui") then
+            item:Destroy()
+        elseif item.Name:sub(1,7)=="Alnair_" and
+            (item:IsA("BasePart") or item:IsA("WeldConstraint")) then
+            item:Destroy()
+        end
+    end
+end
+
+function Appearance.apply(character,rawSelection,loadout)
+    if not character then return false end
+    local humanoid=character:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.RigType~=Enum.HumanoidRigType.R15 then
+        warn("[ALNAIR] Aparência Roblox exige Humanoid R15 blocky nativo.")
+        return false
+    end
+    local selection=Catalog.clean(rawSelection)
+    local desc=Appearance.description(selection,loadout)
+    removeLegacyFakeParts(character)
+    local ok,err=pcall(function()
+        humanoid:ApplyDescriptionAsync(desc)
+    end)
+    desc:Destroy()
+    if not ok then
+        warn("[ALNAIR] Falha ao carregar ativos oficiais Roblox:",err)
+        return false
+    end
+    character:SetAttribute("AlnairRaceVisual",selection.race)
+    character:SetAttribute("AlnairClassVisual",selection.class)
+    character:SetAttribute("AlnairRig","RobloxBlockyR15")
+    character:SetAttribute("AlnairAvatarSource","RobloxHumanoidDescription")
+    local extras=Appearance.arrangeAccessories(character,selection)
+    if selection.class=="mage" then rigMageCoat(character) end
+    if extras.back>0 then
+        warn("[ALNAIR] Faltaram acessórios oficiais de costas:",
+            selection.class,extras.back,"unexpected")
+    end
+    WeaponRender.attach(character,selection.class)
+    return true
+end
+
+function Appearance.refreshOutfit(character,selection,equipped)
+    return Appearance.apply(character,selection,equipped)
+end
+
+function Appearance.applyFaceControls(character,faceId)
+    if not character then return false end
+    local humanoid=character:FindFirstChildOfClass("Humanoid")
+    if not humanoid or humanoid.RigType~=Enum.HumanoidRigType.R15 then
+        return false
+    end
+    local faceAsset=asset("face",faceId,7074764)
+    local desc=humanoid:GetAppliedDescription()
+    desc.Face=faceAsset
+    local ok,err=pcall(function()
+        humanoid:ApplyDescriptionAsync(desc)
+    end)
+    desc:Destroy()
+    if not ok then warn("[ALNAIR] Rosto Roblox indisponível:",err) end
+    return ok
+end
+
+function Appearance.createPreview(parent,rawSelection)
+    local desc=Appearance.description(rawSelection)
+    local ok,model=pcall(function()
+        return BlockyRig.create(desc)
+    end)
+    desc:Destroy()
+    if not ok then error(tostring(model)) end
+    model.Name="PreviewAvatarRobloxR15"
+    model:SetAttribute("AlnairAvatarSource","RobloxHumanoidDescription")
+    model.Parent=parent
+    for _,item in ipairs(model:GetDescendants()) do
+        if item:IsA("BasePart") then
+            item.Anchored=true
+            item.CanCollide=false
+            item.CanQuery=false
+            item.CanTouch=false
+        end
+    end
+    -- HumanoidModelFromDescriptionAsync pode vir no ponto de spawn interno
+    -- (0, 18, 22.5) mesmo dentro de um WorldModel. Trazer o avatar para
+    -- a ORIGEM do estúdio de criação, nunca alterar o rig nem inventar parts.
+    model:PivotTo(CFrame.new(0,2.85,0))
+    Appearance.arrangeAccessories(model,Catalog.clean(rawSelection))
+    local selection=Catalog.clean(rawSelection)
+    if selection.class=="mage" then rigMageCoat(model) end
+    WeaponRender.attach(model,selection.class)
+    return model
 end
 
 return Appearance

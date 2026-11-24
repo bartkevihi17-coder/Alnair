@@ -8,6 +8,9 @@ local Workspace=game:GetService("Workspace")
 local Debris=game:GetService("Debris")
 local MarketplaceService=game:GetService("MarketplaceService")
 local Rules=require(ReplicatedStorage:WaitForChild("AlnairShared"):WaitForChild("GameRules"))
+local Shared=ReplicatedStorage:WaitForChild("AlnairShared")
+local Appearance=require(Shared:WaitForChild("Appearance"))
+local Catalog=require(Shared:WaitForChild("Catalog"))
 local ArtAssets=require(script.Parent:WaitForChild("ArtAssets"))
 local Profiles=require(script.Parent:WaitForChild("PlayerProgress"))
 local WorldExpansion=require(script.Parent:WaitForChild("WorldExpansion"))
@@ -31,6 +34,17 @@ local query=remote("RemoteFunction","Query")
 local run={}
 local abilityCooldown={}
 local lastAttack={}
+local combos={}
+local function countHit(player,n)
+    if n<=0 or not player.Parent then return end
+    local now=workspace:GetServerTimeNow()
+    local old=player:GetAttribute("AlnairComboUntil") or 0
+    local count=now<old and (player:GetAttribute("AlnairHitCombo") or 0) or 0
+    player:SetAttribute("AlnairHitCombo",count+n)
+    player:SetAttribute("AlnairComboUntil",now+3)
+end
+local fx=remote("RemoteEvent","CombatFX")
+local lastSprint={}
 local lastFly={}
 local failedLogin={}
 local devAccess={}
@@ -96,7 +110,10 @@ local function cleanupMount(player)
     local _root,humanoid=characterRoot(player)
     if humanoid then
         humanoid.AutoRotate=true
-        humanoid.WalkSpeed=16
+        player:SetAttribute("AlnairSprinting",false)
+        local speedBoost=(run[player] and run[player].buffs
+            and run[player].buffs.speed or 0)
+        humanoid.WalkSpeed=16*(1+speedBoost+Profiles.speedBonus(player))
         humanoid:ChangeState(Enum.HumanoidStateType.Running)
     end
     mounts[player]=nil
@@ -104,6 +121,20 @@ local function cleanupMount(player)
     push(player)
 end
 
+local function refreshOutfit(player)
+    local profile=Profiles.get(player)
+    local character=player.Character
+    if not profile or not character then return end
+    local choices={}
+    for _,group in ipairs(Catalog.PresetOrder) do
+        choices[group]=player:GetAttribute("AlnairPreset_"..group)
+    end
+    Appearance.refreshOutfit(character,{
+        race=player:GetAttribute("AlnairRace"),
+        class=player:GetAttribute("AlnairClass"),
+        appearance=choices
+    },profile.equipped)
+end
 local function mountVisual(player,kind)
     local rootPart,humanoid=characterRoot(player)
     if not rootPart or not humanoid then return nil end
@@ -230,14 +261,27 @@ local function updatePlayerVitals(player)
     local rootPart,humanoid=characterRoot(player)
     if not p or not humanoid then return end
     local r=run[player]
+    local stats=Profiles.attributes(player)
+    if stats then
+        local staminaMax=60+stats.values.endurance*8
+        local manaMax=30+stats.values.intelligence*10
+        player:SetAttribute("AlnairMaxStamina",staminaMax)
+        player:SetAttribute("AlnairMaxMana",manaMax)
+        if player:GetAttribute("AlnairStamina")==nil then player:SetAttribute("AlnairStamina",staminaMax) end
+        if player:GetAttribute("AlnairMana")==nil then player:SetAttribute("AlnairMana",manaMax) end
+    end
     local max=Profiles.maxHealth(player)+runBuff(r,"health")
     local pct=humanoid.MaxHealth>0 and humanoid.Health/humanoid.MaxHealth or 1
     humanoid.MaxHealth=max
     humanoid.Health=math.clamp(max*pct,1,max)
     if not mounts[player] then
-        humanoid.WalkSpeed=16*(1+runBuff(r,"speed"))
+        humanoid.WalkSpeed=16*(1+runBuff(r,"speed")+Profiles.speedBonus(player))
+            + (player:GetAttribute("AlnairSprinting")==true and 7 or 0)
     end
-    player:SetAttribute("AlnairRunArmor",runBuff(r,"armor"))
+    player:SetAttribute("AlnairRunArmor",
+        math.clamp(Profiles.damageMitigation(player)+runBuff(r,"armor"),0,.75))
+    player:SetAttribute("AlnairDefense",Profiles.defense(player))
+    player:SetAttribute("AlnairAttack",Profiles.attackPower(player))
 end
 local function spawnWave(player)
     local r=run[player]
@@ -286,7 +330,7 @@ local function finishArena(player,died)
     Enemies.clearRun(player)
     releaseArena(player)
     run[player]=nil
-    player:SetAttribute("AlnairRunArmor",0)
+    player:SetAttribute("AlnairRunArmor",Profiles.damageMitigation(player))
     if died then
         Profiles.addGold(player,rewardGold)
         Profiles.addXP(player,rewardXP)
@@ -436,15 +480,44 @@ local function combat(player,id)
     if mode~="sandbox" and mode~="campaign_map" and mode~="dungeon" and mode~="sky" then return end
     local rootPart,hum=characterRoot(player)
     if not rootPart or not hum or hum.Health<=0 then return end
+    local aim=rootPart.CFrame.LookVector
+    if typeof(id)=="table" then
+        local point=id.aim;id=id.id
+        if typeof(point)=="Vector3" and point.Magnitude<100000 then
+            local d=point-rootPart.Position;d=Vector3.new(d.X,0,d.Z)
+            if d.Magnitude>.1 then aim=d.Unit end
+        end
+    end
     local now=os.clock()
     local r=run[player]
     if id=="basic" then
         if now-(lastAttack[player] or 0)<.48 then return end
+        local previous=lastAttack[player] or 0
         lastAttack[player]=now
+        local class=player:GetAttribute("AlnairClass") or "warrior"
+        local step=now-previous>1.4 and 1 or ((combos[player] or 0)%3)+1
+        combos[player]=step
+        local range=class=="mage" and 55 or class=="fighter" and 8 or 12
+        local target=Enemies.findTarget(player,range,aim)
+        local destination=target and target.pos+Vector3.new(0,1,0) or rootPart.Position+aim*range
+        fx:FireAllClients(player.Character,class,step,CFrame.lookAt(rootPart.Position,rootPart.Position+aim),destination)
         local power=Profiles.attackPower(player)*(1+runBuff(r,"damage"))
-        local hits=Enemies.attackArea(player,12,power,false)
-        if hits>0 and runBuff(r,"leech")>0 then
-            hum.Health=math.min(hum.MaxHealth,hum.Health+power*runBuff(r,"leech"))
+        local hits=0
+        if class=="mage" then
+            task.delay(.81,function()
+                if target and player.Character and hum.Health>0 and Enemies.damage(target,player,power*(step==3 and 1.35 or 1)) then countHit(player,1) end
+            end)
+        else
+            -- Register contact at the actual visual blade impact, not on key-down.
+            task.delay(.27,function()
+                if target and player.Character and hum.Health>0
+                    and Enemies.damage(target,player,power*(step==3 and 1.35 or 1)) then
+                    countHit(player,1)
+                    if runBuff(r,"leech")>0 then
+                        hum.Health=math.min(hum.MaxHealth,hum.Health+power*runBuff(r,"leech"))
+                    end
+                end
+            end)
         end
         return
     end
@@ -457,6 +530,9 @@ local function combat(player,id)
     abilityCooldown[player]=cooldown
     local resetTime=cooldown[id] or 0
     if now<resetTime then return end
+    local mana=player:GetAttribute("AlnairMana") or 0
+    if mana<15 then return end
+    player:SetAttribute("AlnairMana",mana-15)
     cooldown[id]=now+skill.cooldown/(1+runBuff(r,"haste"))
     if skill.kind=="heal" then
         hum.Health=math.min(hum.MaxHealth,hum.Health+skill.damage)
@@ -467,7 +543,11 @@ local function combat(player,id)
         end)
     else
         local power=(skill.damage+Profiles.attackPower(player)*.42)*(1+runBuff(r,"damage"))
-        Enemies.attackArea(player,skill.range,power,true)
+        local class=player:GetAttribute("AlnairClass") or "warrior"
+        local target=Enemies.findTarget(player,skill.range,aim)
+        local destination=target and target.pos+Vector3.new(0,1,0) or rootPart.Position+aim*skill.range
+        fx:FireAllClients(player.Character,class,3,rootPart.CFrame,destination)
+        countHit(player,Enemies.attackArea(player,skill.range,power,true,aim))
         if runBuff(r,"leech")>0 then
             hum.Health=math.min(hum.MaxHealth,hum.Health+power*runBuff(r,"leech"))
         end
@@ -551,7 +631,39 @@ end
 
 action.OnServerEvent:Connect(function(player,verb,value)
     if typeof(verb)~="string" or #verb>40 then return end
-    if verb=="devAuth" then
+    if verb=="sprint" then
+        if typeof(value)~="boolean" or not Profiles.ready(player) then return end
+        local now=os.clock()
+        if now-(lastSprint[player] or -100)<.055 then return end
+        lastSprint[player]=now
+        local mode=player:GetAttribute("AlnairMode")
+        if (mode~="campaign_map" and mode~="sandbox" and mode~="lobby"
+            and mode~="dungeon" and mode~="sky")
+            or mounts[player] then
+            player:SetAttribute("AlnairSprinting",false)
+            return
+        end
+        local _,hum=characterRoot(player)
+        if not hum or hum.Health<=0 then return end
+        player:SetAttribute("AlnairSprinting",value)
+        updatePlayerVitals(player)
+    elseif verb=="dodge" then
+        local rootPart,hum=characterRoot(player)
+        local now=workspace:GetServerTimeNow()
+        if not rootPart or not hum or hum.Health<=0 or mounts[player] or not Profiles.ready(player) or typeof(value)~="Vector3" or value.Magnitude>2 or value.Magnitude<.1 then return end
+        if now<(player:GetAttribute("AlnairDodgeUntil") or 0)+.55 then return end
+        local dir=Vector3.new(value.X,0,value.Z)
+        if dir.Magnitude<.1 then return end
+        dir=dir.Unit
+        local stamina=player:GetAttribute("AlnairStamina") or 100
+        if stamina<20 then return end
+        player:SetAttribute("AlnairStamina",stamina-20)
+        player:SetAttribute("AlnairDodgeUntil",now+.48)
+        rootPart.AssemblyLinearVelocity=dir*30+Vector3.new(0,rootPart.AssemblyLinearVelocity.Y,0)
+        local att=Instance.new("Attachment",rootPart)
+        local lv=Instance.new("LinearVelocity");lv.Attachment0=att;lv.MaxForce=30000;lv.VelocityConstraintMode=Enum.VelocityConstraintMode.Plane;lv.PrimaryTangentAxis=Vector3.xAxis;lv.SecondaryTangentAxis=Vector3.zAxis;lv.PlaneVelocity=Vector2.new(dir.X,dir.Z)*28;lv.Parent=rootPart
+        task.delay(.42,function() lv:Destroy();att:Destroy() end)
+    elseif verb=="devAuth" then
         local now=os.clock()
         if now-(failedLogin[player] or -100)<1.8 then return end
         failedLogin[player]=now
@@ -567,6 +679,12 @@ action.OnServerEvent:Connect(function(player,verb,value)
         end
     elseif verb=="dev" then
         handleDev(player,value)
+    elseif verb=="allocateStat" then
+        local ok,msg=Profiles.allocateAttribute(player,value)
+        if ok then
+            updatePlayerVitals(player)
+        end
+        notice(player,msg,ok and "success" or "warning")
     elseif verb=="skillChoice" then
         local ok,msg=Profiles.chooseSkill(player,value)
         notice(player,msg,ok and "success" or "warning")
@@ -581,6 +699,7 @@ action.OnServerEvent:Connect(function(player,verb,value)
     elseif verb=="equip" then
         if Profiles.equip(player,value) then
             updatePlayerVitals(player)
+            refreshOutfit(player)
         end
     elseif verb=="mount" then toggleMount(player,value)
     elseif verb=="fly" then
@@ -613,6 +732,11 @@ local function setupCharacter(player,character)
         while not Profiles.ready(player) and count<40 do count+=1;task.wait(.2) end
         if player.Character~=character then return end
         task.wait(.45)
+        player:SetAttribute("AlnairSprinting",false)
+        -- O rig R6 quadrado usa as dimensoes classicas do Roblox.
+        if humanoid.RigType==Enum.HumanoidRigType.R6 then
+            humanoid.HipHeight=0
+        end
         local mode=player:GetAttribute("AlnairMode")
         if mode=="sandbox" then
             if not run[player] then beginArena(player) end
@@ -628,7 +752,9 @@ local function setupCharacter(player,character)
         end
         humanoid.MaxHealth=Profiles.maxHealth(player)
         humanoid.Health=humanoid.MaxHealth
+        updatePlayerVitals(player)
         Profiles.ensureDraft(player)
+        refreshOutfit(player)
         push(player)
         humanoid.Died:Connect(function()
             local r=run[player]
@@ -665,6 +791,8 @@ Players.PlayerRemoving:Connect(function(player)
     cleanupMount(player)
     Profiles.unload(player)
     lastAttack[player]=nil
+    combos[player]=nil
+    lastSprint[player]=nil
     lastFly[player]=nil
     devAccess[player]=nil
     failedLogin[player]=nil
@@ -672,6 +800,24 @@ Players.PlayerRemoving:Connect(function(player)
     abilityCooldown[player]=nil
 end)
 
+task.spawn(function()
+    while true do
+        task.wait(.25)
+        for _,p in ipairs(Players:GetPlayers()) do
+            local max=p:GetAttribute("AlnairMaxStamina")
+            if max then
+                local s=p:GetAttribute("AlnairStamina") or max
+                local root,hum=characterRoot(p)
+                local running=p:GetAttribute("AlnairSprinting") and root and root.AssemblyLinearVelocity.Magnitude>5
+                s=math.clamp(s+(running and -3 or 4),0,max)
+                p:SetAttribute("AlnairStamina",s)
+                if s<=0 and running then p:SetAttribute("AlnairSprinting",false);updatePlayerVitals(p) end
+                local m=p:GetAttribute("AlnairMaxMana") or 0
+                p:SetAttribute("AlnairMana",math.min(m,(p:GetAttribute("AlnairMana") or m)+2))
+            end
+        end
+    end
+end)
 -- Exploracao: servidor revela apenas celulas proximas do avatar real.
 task.spawn(function()
     while true do
@@ -721,7 +867,7 @@ if board then
                 table.insert(lines,string.format("  %02d     %s    • Nv. %d",i,data.name,data.level or 1))
             end
             if #ranks==0 then table.insert(lines,"Ainda nao existem aventureiros no ranking.") end
-            if RunService:IsStudio() then table.insert(lines,"","[ Ranking demonstrativo no Studio ]") end
+            if RunService:IsStudio() then table.insert(lines,"");table.insert(lines,"[ Ranking demonstrativo no Studio ]") end
             text.Text=table.concat(lines,"\n")
             task.wait(90)
         end

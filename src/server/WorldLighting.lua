@@ -20,45 +20,72 @@ local function getEffect(className, name)
 end
 
 function WorldLighting.apply()
-    Lighting.ClockTime = 16.35
-    Lighting.Brightness = 2.45
-    Lighting.ExposureCompensation = .04
+    Lighting.ClockTime = 15.3
+    Lighting.GeographicLatitude = 36
+    Lighting.Brightness = 2.25
+    Lighting.ExposureCompensation = .02
     Lighting.GlobalShadows = true
-    Lighting.Ambient = Color3.fromRGB(107, 112, 127)
-    Lighting.OutdoorAmbient = Color3.fromRGB(156, 166, 177)
-    Lighting.FogColor = Color3.fromRGB(175, 187, 197)
-    Lighting.FogStart = 205
-    Lighting.FogEnd = 825
-    -- Compatibilidade entre versoes do motor Roblox.
-    pcall(function() Lighting.Technology = Enum.Technology.ShadowMap end)
-    pcall(function() Lighting.EnvironmentDiffuseScale = .65 end)
-    pcall(function() Lighting.EnvironmentSpecularScale = .38 end)
-    pcall(function() Workspace.GlobalWind = Vector3.new(2.5, 0, 1.4) end)
+    Lighting.Ambient = Color3.fromRGB(74, 82, 83)
+    Lighting.OutdoorAmbient = Color3.fromRGB(124, 135, 130)
+    Lighting.FogColor = Color3.fromRGB(204, 214, 222)
+    Lighting.FogStart = 460
+    Lighting.FogEnd = 1090
+    -- Unified Lighting: tecnologia antiga removida, usar LightingStyle (Realistic) no Rojo.
+    pcall(function() Lighting.LightingStyle = Enum.LightingStyle.Realistic end)
+    pcall(function() Lighting.PrioritizeLightingQuality = true end)
+    pcall(function() Lighting.ShadowSoftness = .29 end)
+    pcall(function() Lighting.EnvironmentDiffuseScale = .72 end)
+    pcall(function() Lighting.EnvironmentSpecularScale = .48 end)
+    pcall(function() Workspace.GlobalWind = Vector3.new(4.6, 0, 2.2) end)
 
     local atmosphere = getEffect("Atmosphere", "AlnairAtmosphere")
-    atmosphere.Density = .22
-    atmosphere.Offset = .06
-    atmosphere.Haze = 1.3
+    atmosphere.Density = .21
+    atmosphere.Offset = .12
+    atmosphere.Haze = .78
     atmosphere.Glare = .10
-    atmosphere.Color = Color3.fromRGB(227, 211, 193)
-    atmosphere.Decay = Color3.fromRGB(114, 134, 167)
+    atmosphere.Color = Color3.fromRGB(227, 225, 212)
+    atmosphere.Decay = Color3.fromRGB(172, 184, 178)
+
+    -- A Sky usa os astros nativos e o gradiente atmosférico do motor.
+    -- Não criar céu artificial com Partes; Clouds do Terrain tem volume e vento.
+    local sky = getEffect("Sky", "AlnairNaturalSky")
+    sky.CelestialBodiesShown = true
+    sky.SunAngularSize = 10
+    sky.MoonAngularSize = 9
+    sky.StarCount = 1300
 
     local color = getEffect("ColorCorrectionEffect", "AlnairColor")
-    color.Brightness = .01
-    color.Contrast = .12
-    color.Saturation = .10
-    color.TintColor = Color3.fromRGB(255, 240, 223)
+    color.Brightness = .00
+    color.Contrast = .11
+    color.Saturation = .08
+    color.TintColor = Color3.fromRGB(255, 250, 238)
 
     local bloom = getEffect("BloomEffect", "AlnairBloom")
     bloom.Enabled = true
     bloom.Intensity = .15
-    bloom.Size = 18
-    bloom.Threshold = 2.1
+    bloom.Size = 22
+    bloom.Threshold = 1.95
 
     local sun = getEffect("SunRaysEffect", "AlnairSunRays")
     sun.Enabled = true
-    sun.Intensity = .035
-    sun.Spread = .75
+    sun.Intensity = .09
+    sun.Spread = .53
+    -- Nuvens leves (uma instancia, sem loops por frame) para quebrar o ceu vazio.
+    pcall(function()
+        local terrain = Workspace.Terrain
+        local clouds = terrain:FindFirstChild("AlnairClouds")
+        if not clouds then
+            clouds = Instance.new("Clouds")
+            clouds.Name = "AlnairClouds"
+            clouds.Parent = terrain
+        end
+        clouds.Enabled = true
+        clouds.Cover = .37
+        clouds.Density = .43
+        clouds.Color = Color3.fromRGB(247, 245, 242)
+    end)
+    -- Nao aplicar DOF nem Blur: manter a primeira pessoa nítida no gameplay.
+    -- Efeitos limitados a Atmosphere + ColorCorrection + Bloom + SunRays.
     -- DOF propositalmente omitido: custa GPU e compromete nitidez do combate.
 end
 

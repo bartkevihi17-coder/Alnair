@@ -7,37 +7,21 @@ local StarterPlayer = game:GetService("StarterPlayer")
 local shared = ReplicatedStorage:WaitForChild("AlnairShared")
 local Catalog = require(shared:WaitForChild("Catalog"))
 local Appearance = require(shared:WaitForChild("Appearance"))
-local RigAdapter=require(script.Parent:WaitForChild("RigAdapter"))
+local BlockyRig=require(shared:WaitForChild("BlockyRig"))
 local World = require(script.Parent:WaitForChild("World"))
 
 -- Menu antes do spawn; aparência padrão da conta Roblox desativada.
 Players.CharacterAutoLoads = false
 StarterPlayer.LoadCharacterAppearance = false
 
--- Avatar organico R15: importado FBX (Quaternius, CC0) e articulado via
--- Avatar Setup. StarterCharacter mantem colisao/camera/animacoes do Humanoid.
-local rigSource = shared:FindFirstChild("AlnairRiggedBody")
-if rigSource and rigSource:IsA("Model") then
-    local starter = rigSource:Clone()
-    starter.Name = "StarterCharacter"
-    local adapted,count=RigAdapter.adapt(starter)
-    local bodyHumanoid=starter:FindFirstChildOfClass("Humanoid")
-    if bodyHumanoid then
-        -- Evita que o auto scaling da Avatar Setup recalcule HipHeight negativo.
-        bodyHumanoid.AutomaticScalingEnabled=false
-        bodyHumanoid.HipHeight=2.67
-    end
-    if not adapted then
-        warn("[ALNAIR] Rig R15 incompleto:",count,"juntas; verificar animacoes.")
-    end
-    local rootPart = starter:FindFirstChild("HumanoidRootPart")
-    if rootPart and rootPart:IsA("BasePart") then
-        rootPart.Anchored = false
-    end
-    starter.Parent = StarterPlayer
-else
-    warn("[ALNAIR] Avatar R15 indisponivel, mantendo personagem Roblox nativo.")
-end
+-- Avatar Roblox R15 articulado com silhueta BLOCKY oficial.
+-- Nunca injeta a malha R15 Quaternius nos jogadores.
+local oldStarter=StarterPlayer:FindFirstChild("StarterCharacter")
+if oldStarter then oldStarter:Destroy() end
+local starter=BlockyRig.create()
+starter.Name="StarterCharacter"
+starter.Parent=StarterPlayer
+print("[ALNAIR] StarterCharacter oficial R15 BLOCKY preparado.")
 local world = World.create()
 local spawn = world:FindFirstChild("AlnairSpawn")
 
@@ -54,7 +38,11 @@ local pending = {}
 local function setupPlayer(player)
     player.CanLoadCharacterAppearance = false
     if spawn and spawn:IsA("SpawnLocation") then
-        player.RespawnLocation = spawn
+        player.RespawnLocation=spawn
+        -- CharacterAutoLoads=false: without a humanoid the client has
+        -- NO replication focus, so the menu landscape may be absent.
+        -- Keep the player focused on the real menu house during creation.
+        player.ReplicationFocus=spawn
     end
 
     player.CharacterAdded:Connect(function(character)
@@ -64,8 +52,10 @@ local function setupPlayer(player)
             local head = character:WaitForChild("Head", 12)
             local humanoid = character:WaitForChild("Humanoid", 12)
             if not head or not humanoid then return end
-            -- Aguarda o rig clássico ou os membros do R15 concluírem o carregamento.
+            -- Aguarda as partes do avatar articulado R15 terminarem de carregar.
             character:WaitForChild("HumanoidRootPart", 8)
+            -- Return streaming focus to the actual moving character.
+            player.ReplicationFocus=nil
             task.wait(.2)
             if player.Character == character then
                 Appearance.apply(character, selection)

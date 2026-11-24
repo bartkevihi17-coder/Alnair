@@ -1,6 +1,6 @@
 # AGENTS.md — Regras obrigatórias do projeto Alnair
 
-Estas são instruções permanentes do repositório para qualquer agente ou colaborador. Valem em TODAS as próximas alterações e revisões do jogo Roblox Alnair. A conversa do proprietário em 22/11/2026 é a origem deste documento.
+Estas são instruções permanentes do repositório para qualquer agente ou colaborador. Valem em TODAS as próximas alterações e revisões do jogo Roblox Alnair. A conversa do proprietário em 22/11/2026 é a origem deste documento; a decisão posterior de usar R6 clássico prevalece sobre instruções mais antigas.
 
 ## 0. Sessão Roblox Studio
 - **Reutilizar sempre a instância do Roblox Studio já aberta no desktop.** Nunca abrir uma segunda instância, outro processo ou tentar executar um novo Place com duplo clique / pc_open sem autorização.
@@ -9,12 +9,20 @@ Estas são instruções permanentes do repositório para qualquer agente ou cola
 - Antes de testes destrutivos, guardar cópia da experiência e proteger as alterações do usuário no Studio.
 - Nenhum login novo deve ser disparado por abrir outra instância.
 
-## 1. Quatro raças e cinco classes: modelos realmente diferentes
-- Raças obrigatórias e sem substituições: **humano, bruxo, morto-vivo e elfo**.
-- Cada raça deve ter **modelo 3D próprio e silhueta reconhecível**, com proporções, rosto, cabelo, orelhas, pele e acessórios diferentes. Apenas variar a cor **não conta**. Mesmo corpo base com variação de tinta **não satisfaz** esta regra.
-- Classes obrigatórias: **guerreiro (espada+escudo), assassino (duas adagas), mago (cajado), lutador (punhos) e samurai (katana)**.
-- Classes com roupas, armaduras, armas e acessórios visivelmente distintos. Todo personagem deve estar vestido; proibir corpos nus ou avatares padrão sem roupa.
-- Preferência por modelos 3D gratuitos com licenças comprovadas, importados, rigados, animados e testados no Roblox Studio. Registrar origem, licença e permissões dos assets.
+## 0.5. Meta visual temporaria: replicar Vesteria
+- A nova orientacao do proprietario substitui o pedido anterior de mera inspiracao. A primeira build de teste deve buscar fidelidade maxima a apresentacao visual de Vesteria, especialmente menu de selecao em coluna lateral estreita, mundo de fantasia vivo, aparencia das roupas, proporcoes, caminhos, construcoes, fungos, cores e HUD.
+- O resultado ainda preserva as excecoes expressas do usuario: todos os personagens humanoides usam R6 quadradao e a exploracao e em primeira pessoa. Progressao, classes, combate, modos e dados sao originais de Alnair.
+- A fonte publica berezaa/vesteria e uma reformulacao incompleta. Nao contem todos os modelos/mapas/UI do jogo publicado. Usar recursos com licenca e criar substitutos em estilo correspondente sem reutilizar assets proprietarios da experiencia publicada ou marcas de Vesteria.
+- O proprio usuario fara os testes: nao abrir Roblox Studio sem autorizacao nova, e nao afirmar similaridade visual 1:1 ou funcionamento validado sem confronto real das capturas.
+
+## 1. Quatro raças, cinco classes e base R6 obrigatória
+- **Apenas o boneco quadrado clássico do Roblox (R6)** pode ser utilizado para jogadores e personagens humanoides. Não usar modelos humanos importados, corpos orgânicos R15, FBX ou malhas 3D externas para o corpo. A decisão mais recente do proprietário substitui a regra anterior de corpos 3D próprios para cada raça.
+- **Manter as quatro raças**: humano, bruxa, morto-vivo e elfo. Todas compartilham a base R6, mas têm rosto, cabelo, orelhas, silhuetas de acessórios, vestes e adornos genuinamente diferentes. Só trocar a cor não é suficiente.
+- **Manter as cinco classes**: guerreiro (espada+escudo), assassino (duas adagas), mago (cajado), lutador (punhos) e samurai (katana). Devem ter equipamentos e roupa específicos; todo personagem deve estar vestido, inclusive quando escolher a opção de roupa simples.
+- Utilizar cabelo, barba, armaduras, mantos, chapéus e armas construídos com partes Roblox comuns e soldas, ou acessórios licenciados. Não depender de novos assets de corpo humanoide externos.
+- NPCs humanoides e inimigos também devem manter visual blocky. Animais, dragões, construções, rochas e vegetação podem usar modelos 3D de cenário licenciados.
+- Primeira pessoa obrigatória na exploração e combate; a prévia do criador e as cutscenes podem usar câmera externa para mostrar o vestuário.
+- **Neste ciclo trabalhar apenas nos arquivos locais:** não abrir, controlar nem iniciar Roblox Studio sem nova autorização expressa.
 
 ## 2. Critérios de validação
 - Antes de afirmar que ficou pronto, testar **dentro do jogo** e fazer **capturas individuais das quatro raças e cinco classes**; comparar silhueta, acessórios, roupas e animações lado a lado.
@@ -43,4 +51,4 @@ Estas são instruções permanentes do repositório para qualquer agente ou cola
 - Não expor senhas de dev em produção. Modo DEV exclusivo para ambiente Studio até definição de autenticação robusta.
 - Verificar permissões das malhas/texturas/animações na experiência publicada, não apenas no ambiente de desenvolvimento.
 
-**Regra final:** a aprovação da arte exige modelos 3D diferentes de verdade, não troca de cores; a aprovação do código exige teste real no Roblox Studio; e a instância já aberta deve ser reutilizada.
+**Regra final:** a aprovação da arte exige R6 clássico com trajes e acessórios diferentes de verdade, não só troca de cores; a aprovação do código exige teste real no Roblox Studio; e a instância já aberta deve ser reutilizada.

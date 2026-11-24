@@ -1,3 +1,13 @@
+# ALNAIR — REBORN (R6, primeira pessoa)
+
+**Estado local em 22/11/2026:** mundo e menu refeitos, visual de personagens migrado para o R6 quadradão clássico da Roblox. As raças humano/bruxa/morto-vivo/elfo e classes guerreiro/assassino/mago/lutador/samurai mantêm seus visuais próprios por roupa e acessórios, sem corpos R15 importados. Exploração em primeira pessoa com equipamento visível. Progressão própria preservada. Consulte docs/REBUILD_VESTERIA_FIRSTPERSON.md.
+
+**Build de arquivos (sem Studio):** C:\Users\bartk\AppData\Local\Programs\Rojo\rojo.exe build default.project.json -o build\Alnair-reborn-R6.rbxl. O Roblox Studio não foi aberto nem usado para testar nesta etapa; aguardar autorização do proprietário para testagem e screenshots.
+
+---
+
+## Registro histórico (versões antigas)
+
 # ALNAIR
 
 RPG de fantasia em mundo aberto, criado no Roblox Studio com Luau e Rojo.

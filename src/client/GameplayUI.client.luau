@@ -17,13 +17,24 @@ if not network then
     return
 end
 local action=network:WaitForChild("Action")
+local function sendAttack(id)
+    local camera=workspace.CurrentCamera
+    local mouse=game:GetService("UserInputService"):GetMouseLocation()
+    local ray=camera:ViewportPointToRay(mouse.X,mouse.Y)
+    local char=game.Players.LocalPlayer.Character
+    local params=RaycastParams.new();params.FilterType=Enum.RaycastFilterType.Exclude;params.FilterDescendantsInstances=char and {char} or {}
+    local hit=workspace:Raycast(ray.Origin,ray.Direction*100,params)
+    action:FireServer("attack",{id=id,aim=hit and hit.Position or ray.Origin+ray.Direction*65})
+end
+
 local state=network:WaitForChild("State")
 local query=network:WaitForChild("Query")
+-- Paleta ALNAIR REBORN: madeira, pergaminho, folhas e ouro vivo.
 local C={
-    bg=Color3.fromRGB(12,17,27),panel=Color3.fromRGB(26,33,45),panel2=Color3.fromRGB(34,43,56),
-    gold=Color3.fromRGB(226,185,112),white=Color3.fromRGB(239,233,220),
-    mute=Color3.fromRGB(166,173,184),blue=Color3.fromRGB(112,188,219),
-    green=Color3.fromRGB(117,202,148),red=Color3.fromRGB(207,94,97)
+    bg=Color3.fromRGB(26,30,35),panel=Color3.fromRGB(40,43,47),panel2=Color3.fromRGB(55,60,62),
+    gold=Color3.fromRGB(230,195,112),white=Color3.fromRGB(248,246,238),
+    mute=Color3.fromRGB(181,191,193),blue=Color3.fromRGB(54,171,236),
+    green=Color3.fromRGB(110,201,119),red=Color3.fromRGB(231,78,74)
 }
 local profile=nil
 local modal=nil
@@ -33,6 +44,8 @@ local dismissedDraft=nil
 local cardsSignature=nil
 local menuOpen=false
 local gameplay=false
+local crosshair=nil
+local showAttributes=function() end
 
 local function obj(class,props,parent)
     local v=Instance.new(class)
@@ -50,7 +63,7 @@ local function outline(parent,color,transparency,thickness)
 end
 local function label(parent,text,size,pos,dimensions,color,font)
     return obj("TextLabel",{
-        BackgroundTransparency=1,Text=tostring(text),Font=font or Enum.Font.Gotham,
+        BackgroundTransparency=1,Text=tostring(text),Font=font or Enum.Font.BuilderSans,
         TextColor3=color or C.white,TextSize=size or 15,TextWrapped=true,
         TextXAlignment=Enum.TextXAlignment.Left,
         TextYAlignment=Enum.TextYAlignment.Center,
@@ -60,7 +73,7 @@ local function label(parent,text,size,pos,dimensions,color,font)
 end
 local function button(parent,caption,pos,dimensions,handler,accent)
     local b=obj("TextButton",{
-        Text=caption,Font=Enum.Font.GothamBold,TextColor3=accent and C.bg or C.white,
+        Text=caption,Font=Enum.Font.BuilderSansBold,TextColor3=accent and C.bg or C.white,
         TextSize=13,TextWrapped=true,AutoButtonColor=false,BorderSizePixel=0,
         BackgroundColor3=accent and C.gold or C.panel2,
         Position=pos,Size=dimensions
@@ -79,21 +92,27 @@ end
 local function panel(parent,size,pos)
     local f=obj("Frame",{
         Size=size,Position=pos,BorderSizePixel=0,
-        BackgroundColor3=C.panel,BackgroundTransparency=.05
+        BackgroundColor3=C.panel,BackgroundTransparency=.08
     },parent)
-    curve(f,10)
-    outline(f,C.gold,.68)
+    curve(f,8)
+    outline(f,C.gold,.35,1.3)
+    local shade=obj("UIGradient",{
+        Color=ColorSequence.new({
+            ColorSequenceKeypoint.new(0,Color3.fromRGB(66,72,75)),
+            ColorSequenceKeypoint.new(1,Color3.fromRGB(34,41,44)),
+        }),
+        Rotation=90,
+    },f)
     return f
 end
 local gui=obj("ScreenGui",{
     Name="AlnairGameplayHUD",IgnoreGuiInset=true,ResetOnSpawn=false,
     DisplayOrder=35,ZIndexBehavior=Enum.ZIndexBehavior.Sibling
 },playerGui)
-local devButton=button(gui,"DEV",UDim2.new(1,-88,1,-46),UDim2.fromOffset(72,30),function()
-    if not profile or not profile.dev then
-        -- showDev implemented adiante
-    end
-end,false)
+-- The developer entry never appears on the public game or title screen.
+local devButton=button(gui,"DEV",UDim2.new(1,-88,1,-46),
+    UDim2.fromOffset(72,30),function()end,false)
+devButton.Visible=false
 devButton.Name="DeveloperEntry"
 devButton.BackgroundColor3=Color3.fromRGB(52,44,46)
 devButton.TextColor3=C.gold
@@ -103,44 +122,161 @@ local hud=obj("Frame",{
     Name="CampaignHUD",BackgroundTransparency=1,
     Size=UDim2.fromScale(1,1),Visible=false
 },gui)
-local stats=panel(hud,UDim2.fromOffset(330,101),UDim2.new(1,-345,0,18))
-local statMain=label(stats,"NIVEL 1   •   0 OURO   •   0 GEMAS",15,UDim2.fromScale(.05,.09),UDim2.fromScale(.9,.34),C.gold,Enum.Font.GothamBold)
-local statAux=label(stats,"0 / 100 XP   |   VIDA 100/100",12,UDim2.fromScale(.05,.42),UDim2.fromScale(.9,.22),C.mute)
+local stats=panel(hud,UDim2.fromOffset(333,119),UDim2.new(0,18,1,-138))
+stats.Name="VesteriaStyleStatusBars"
+stats.BackgroundTransparency=.26
+local statMain=label(stats,"NIVEL 1   •   0 OURO   •   0 GEMAS",15,UDim2.fromScale(.05,.09),UDim2.fromScale(.9,.34),C.gold,Enum.Font.BuilderSansBold)
+local statAux=label(stats,"VIDA 100/100",11,UDim2.fromScale(.05,.29),UDim2.fromScale(.9,.12),C.white)
 local xpBg=obj("Frame",{
     Size=UDim2.fromScale(.91,.07),Position=UDim2.fromScale(.045,.80),
     BackgroundColor3=Color3.fromRGB(54,63,76),BorderSizePixel=0,
 },stats)
 curve(xpBg,5)
-local xpFill=obj("Frame",{Size=UDim2.fromScale(0,1),BackgroundColor3=C.gold,BorderSizePixel=0},xpBg)
+local xpFill=obj("Frame",{Size=UDim2.fromScale(0,1),BackgroundColor3=C.green,BorderSizePixel=0},xpBg)
 curve(xpFill,5)
-local questPanel=panel(hud,UDim2.fromOffset(327,95),UDim2.fromOffset(18,97))
-local questText=label(questPanel,"MISSÃO PRINCIPAL",14,UDim2.fromScale(.06,.12),UDim2.fromScale(.88,.72),C.white,Enum.Font.GothamMedium)
+local hpContainer=obj("Frame",{
+    Name="HP",Size=UDim2.new(.90,0,0,16),Position=UDim2.fromScale(.05,.42),
+    BackgroundColor3=Color3.fromRGB(62,48,48),BorderSizePixel=0,
+},stats)
+curve(hpContainer,6)
+local hpFill=obj("Frame",{Name="HPBar",Size=UDim2.fromScale(1,1),
+    BackgroundColor3=C.red,BorderSizePixel=0},hpContainer)
+curve(hpFill,6)
+local mpContainer=obj("Frame",{
+    Name="MP",Size=UDim2.new(.90,0,0,13),Position=UDim2.fromScale(.05,.61),
+    BackgroundColor3=Color3.fromRGB(34,45,56),BorderSizePixel=0
+},stats)
+curve(mpContainer,6)
+local mpFill=obj("Frame",{Name="MPBar",Size=UDim2.fromScale(0,1),
+    BackgroundColor3=C.blue,BorderSizePixel=0},mpContainer)
+curve(mpFill,6)
+local mpText=label(stats,"MANA -- / --",10,
+    UDim2.fromScale(.05,.62),UDim2.fromScale(.9,.10),C.white,Enum.Font.BuilderSansBold)
+mpText.TextXAlignment=Enum.TextXAlignment.Center
+mpText.TextStrokeTransparency=.7
+local attrButton=button(stats,"J  ATRIBUTOS",
+    UDim2.fromScale(.67,.57),UDim2.fromScale(.28,.20),
+    function() showAttributes() end)
+attrButton.TextSize=10
+local questPanel=panel(hud,UDim2.fromOffset(320,116),UDim2.new(1,-341,0,85))
+questPanel.Name="VesteriaStyleQuestTracker"
+questPanel.BackgroundColor3=Color3.fromRGB(39,40,44)
+questPanel.BackgroundTransparency=.17
+local questText=label(questPanel,"MISSÃO PRINCIPAL",14,UDim2.fromScale(.06,.12),UDim2.fromScale(.88,.72),C.white,Enum.Font.BuilderSansMedium)
 questText.TextYAlignment=Enum.TextYAlignment.Top
 
-local bottom=panel(hud,UDim2.fromOffset(620,60),UDim2.new(.5,-310,1,-78))
+local bottom=panel(hud,UDim2.fromOffset(215,153),UDim2.new(1,-234,1,-172))
+bottom.Name="VesteriaStyleActionGrid"
 bottom.BackgroundTransparency=.15
-button(bottom,"M  MAPA",UDim2.fromScale(.01,.15),UDim2.fromScale(.17,.67),function() end)
-button(bottom,"I  BOLSA",UDim2.fromScale(.20,.15),UDim2.fromScale(.19,.67),function() end)
-button(bottom,"K  TALENTOS",UDim2.fromScale(.41,.15),UDim2.fromScale(.22,.67),function() end)
-button(bottom,"V  CAVALO",UDim2.fromScale(.65,.15),UDim2.fromScale(.16,.67),function() action:FireServer("mount","horse") end)
-button(bottom,"B  DRACO",UDim2.fromScale(.83,.15),UDim2.fromScale(.16,.67),function() action:FireServer("mount","dragon") end)
+button(bottom,"M  MAPA",UDim2.fromScale(.04,.06),UDim2.fromScale(.295,.42),function() end)
+button(bottom,"I  BOLSA",UDim2.fromScale(.35,.06),UDim2.fromScale(.295,.42),function() end)
+button(bottom,"K  TALENTOS",UDim2.fromScale(.66,.06),UDim2.fromScale(.295,.42),function() end)
+button(bottom,"V  CAVALO",UDim2.fromScale(.04,.55),UDim2.fromScale(.44,.38),function() action:FireServer("mount","horse") end)
+button(bottom,"B  DRACO",UDim2.fromScale(.53,.55),UDim2.fromScale(.43,.38),function() action:FireServer("mount","dragon") end)
+for index,child in ipairs(bottom:GetChildren()) do
+    if child:IsA("TextButton") then
+        child.TextSize=10
+        child.BackgroundColor3=({
+            Color3.fromRGB(98,149,109), Color3.fromRGB(132,113,161),
+            Color3.fromRGB(88,159,190), Color3.fromRGB(170,127,86),
+            Color3.fromRGB(148,98,115)
+        })[index] or C.panel2
+        outline(child,Color3.fromRGB(211,222,215),.32,1.2)
+    end
+end
 
 local runPanel=panel(hud,UDim2.fromOffset(310,94),UDim2.new(.5,-155,0,17))
 runPanel.Visible=false
-local runText=label(runPanel,"ARENA",14,UDim2.fromScale(.06,.12),UDim2.fromScale(.88,.82),C.gold,Enum.Font.GothamBold)
-local skillBar=panel(hud,UDim2.fromOffset(390,47),UDim2.new(.5,-195,1,-132))
+local runText=label(runPanel,"ARENA",14,UDim2.fromScale(.06,.12),UDim2.fromScale(.88,.82),C.gold,Enum.Font.BuilderSansBold)
+local skillBar=panel(hud,UDim2.fromOffset(315,58),UDim2.new(1,-561,1,-91))
+skillBar.Name="VesteriaStyleAbilityRow"
 skillBar.Visible=false
 local skillButtons={}
 for i=1,5 do
     local x=(i-1)*.2
     local b=button(skillBar,tostring(i).." • --",UDim2.fromScale(x+.008,.10),UDim2.fromScale(.18,.78),function()
         if profile and profile.skills and profile.skills[i] then
-            action:FireServer("attack",profile.skills[i])
+            sendAttack(profile.skills[i])
         end
     end)
-    b.TextSize=11
+    b.TextSize=10
+    b.BackgroundColor3=({
+        Color3.fromRGB(113,143,187),
+        Color3.fromRGB(165,107,170),
+        Color3.fromRGB(83,155,118),
+        Color3.fromRGB(179,137,89),
+        Color3.fromRGB(165,94,100),
+    })[i]
+    outline(b,Color3.fromRGB(216,226,228),.25,1.2)
     skillButtons[i]=b
 end
+
+-- On mobile the normal mouse-click combat input does not exist.
+-- Give touch users a real basic attack and a consumable button. Buttons are
+-- intentionally hidden while exploring menus and on keyboard/gamepad clients.
+local touchControls=obj("Frame",{
+    Name="TouchCombatControls",BackgroundTransparency=1,
+    Size=UDim2.fromOffset(194,94),
+    Position=UDim2.new(1,-204,1,-273),
+    Visible=false,
+},hud)
+local attackTap=button(touchControls,"ATACAR",
+    UDim2.fromOffset(108,8),UDim2.fromOffset(80,80),function()
+        if gameplay and not menuOpen then
+            sendAttack("basic")
+        end
+    end,true)
+attackTap.Name="TouchBasicAttack"
+attackTap.Font=Enum.Font.BuilderSansBold
+attackTap.TextSize=15
+attackTap.BackgroundColor3=Color3.fromRGB(157,88,71)
+for _,corner in ipairs(attackTap:GetChildren()) do
+    if corner:IsA("UICorner") then corner.CornerRadius=UDim.new(.5,0) end
+end
+local potionTap=button(touchControls,"FRASCO",
+    UDim2.fromOffset(26,20),UDim2.fromOffset(65,65),function()
+        if gameplay and not menuOpen then
+            action:FireServer("potion")
+        end
+    end)
+potionTap.Name="TouchPotion"
+potionTap.TextSize=12
+potionTap.BackgroundColor3=Color3.fromRGB(91,122,106)
+for _,corner in ipairs(potionTap:GetChildren()) do
+    if corner:IsA("UICorner") then corner.CornerRadius=UDim.new(.5,0) end
+end
+local function syncTouchControls()
+    touchControls.Visible=gameplay and UserInputService.TouchEnabled and not menuOpen
+end
+
+-- Mira sutil para explorar e combater em PRIMEIRA PESSOA.
+crosshair=obj("Frame",{
+    Name="AlnairReticle",BackgroundTransparency=1,
+    Position=UDim2.fromScale(.5,.5),AnchorPoint=Vector2.new(.5,.5),
+    Size=UDim2.fromOffset(35,35),Visible=false,
+},hud)
+for _,coords in ipairs({
+    {15,3,5,9},{15,23,5,9},{3,15,9,5},{23,15,9,5}
+}) do
+    local arm=obj("Frame",{
+        BackgroundColor3=C.white,BackgroundTransparency=.12,BorderSizePixel=0,
+        Position=UDim2.fromOffset(coords[1],coords[2]),
+        Size=UDim2.fromOffset(coords[3],coords[4]),
+    },crosshair)
+    curve(arm,3)
+end
+local dot=obj("Frame",{
+    BackgroundColor3=C.gold,BorderSizePixel=0,
+    Position=UDim2.fromOffset(15,15),Size=UDim2.fromOffset(5,5),
+},crosshair)
+curve(dot,5)
+
+-- Bússola decorativa nao interfere nos sistemas de mapa existentes.
+local compass=panel(hud,UDim2.fromOffset(235,34),UDim2.new(.5,-117,0,15))
+compass.BackgroundTransparency=.29
+local compassText=label(compass,"  ✦   ALNAIR   •   TERRAS LIVRES   ✦",12,
+    UDim2.fromScale(0,0),UDim2.fromScale(1,1),C.gold,Enum.Font.Merriweather)
+compassText.TextXAlignment=Enum.TextXAlignment.Center
 
 local notifyRoot=obj("Frame",{
     Name="Messages",BackgroundTransparency=1,
@@ -153,7 +289,7 @@ local function toast(message,kind)
     local f=panel(notifyRoot,UDim2.fromScale(.93,.60),UDim2.fromScale(.035,.20))
     f.BackgroundColor3=C.bg
     outline(f,kind=="warning" and C.red or kind=="success" and C.green or C.gold,.22)
-    local t=label(f,message,15,UDim2.fromScale(.05,.05),UDim2.fromScale(.90,.9),C.white,Enum.Font.GothamMedium)
+    local t=label(f,message,15,UDim2.fromScale(.05,.05),UDim2.fromScale(.90,.9),C.white,Enum.Font.BuilderSansMedium)
     t.TextXAlignment=Enum.TextXAlignment.Center
     task.delay(3.4,function()
         if stamp==toastSerial and f.Parent then f:Destroy() end
@@ -163,22 +299,35 @@ end
 local function closeModal()
     if modal then modal:Destroy() end
     modal=nil;modalKind=nil;menuOpen=false
+    player:SetAttribute("AlnairUIFocus",false)
+    syncTouchControls()
+    if crosshair then crosshair.Visible=gameplay end
 end
 local function createModal(titleText,kind)
     closeModal()
     menuOpen=true;modalKind=kind
+    player:SetAttribute("AlnairUIFocus",true)
+    syncTouchControls()
+    if crosshair then crosshair.Visible=false end
     modal=obj("Frame",{
         Name="Overlay_"..kind,Size=UDim2.fromScale(1,1),
         BackgroundColor3=Color3.new(0,0,0),BackgroundTransparency=.33,
         BorderSizePixel=0,ZIndex=50
     },gui)
-    local frame=panel(modal,UDim2.fromScale(.70,.83),UDim2.fromScale(.15,.085))
+    local frame=panel(modal,UDim2.fromScale(.72,.84),UDim2.fromScale(.14,.08))
     frame.Name="Window"
+    local viewport=workspace.CurrentCamera and workspace.CurrentCamera.ViewportSize
+    if viewport and viewport.X<630 then
+        frame.Size=UDim2.fromScale(.96,.88)
+        frame.Position=UDim2.fromScale(.02,.06)
+    end
     frame.BackgroundColor3=C.bg
     frame.BackgroundTransparency=.01
     frame.ZIndex=51
-    label(frame,titleText,26,UDim2.fromScale(.05,.032),UDim2.fromScale(.82,.10),
-        C.gold,Enum.Font.Antique).ZIndex=53
+    label(frame,titleText,
+        viewport and viewport.X<630 and 19 or 26,
+        UDim2.fromScale(.05,.032),UDim2.fromScale(.75,.10),
+        C.gold,Enum.Font.BuilderSansBold).ZIndex=53
     button(frame,"× FECHAR",UDim2.fromScale(.81,.035),UDim2.fromScale(.15,.075),closeModal).ZIndex=53
     return frame
 end
@@ -197,7 +346,7 @@ end
 local function rowInfo(parent,title,detail,actionLabel,fn)
     local wrap=panel(parent,UDim2.new(1,-8,0,63),UDim2.new())
     wrap.AutomaticSize=Enum.AutomaticSize.None
-    label(wrap,title,15,UDim2.fromScale(.04,.10),UDim2.fromScale(.65,.34),C.white,Enum.Font.GothamBold)
+    label(wrap,title,15,UDim2.fromScale(.04,.10),UDim2.fromScale(.65,.34),C.white,Enum.Font.BuilderSansBold)
     label(wrap,detail,12,UDim2.fromScale(.04,.47),UDim2.fromScale(.69,.39),C.mute)
     if actionLabel then
         button(wrap,actionLabel,UDim2.fromScale(.77,.22),UDim2.fromScale(.20,.57),fn or function()end)
@@ -211,10 +360,10 @@ local function showInventory()
     local scroll=makeScroll(win)
     if not profile then return end
     local equips=profile.equipped or {}
-    rowInfo(scroll,"EQUIPADO","Arma: "..(equips.weapon or "--").."   |   Armadura: "..(equips.armor or "--"))
+    rowInfo(scroll,"EQUIPADO","Arma: "..(equips.weapon or "--").."  |  Armadura: "..(equips.armor or "--").."  |  Botas: "..(equips.boots or "--"))
     for _,item in ipairs(profile.inventory or {}) do
         local typ=item.kind or "item"
-        local actionCaption=(typ=="weapon" or typ=="armor") and "EQUIPAR"
+        local actionCaption=(typ=="weapon" or typ=="armor" or typ=="boots") and "EQUIPAR"
             or typ=="consumable" and "UTILIZAR" or nil
         rowInfo(scroll,(item.name or item.id).."   ×"..tostring(item.amount or 1),
             (item.desc or "").."  •  "..typ,actionCaption,function()
@@ -223,12 +372,37 @@ local function showInventory()
             end)
     end
 end
+showAttributes=function()
+    local win=createModal("ATRIBUTOS  /  EVOLUCAO","attributes")
+    if not profile then return end
+    local info=profile.attributes or {}
+    local vals=info.values or {}
+    local available=info.available or 0
+    local class=profile.class or "warrior"
+    local race=profile.race or "human"
+    label(win,"PONTOS DISPONIVEIS:  "..available.."   |   "..string.upper(race).."  /  "..string.upper(class),14,
+        UDim2.fromScale(.045,.125),UDim2.fromScale(.90,.065),C.gold,Enum.Font.BuilderSansBold)
+    label(win,"ATAQUE "..math.floor(profile.attack or 0).."     DEFESA "..math.floor(profile.defense or 0)..
+        "     •  GANHE "..Rules.ATTRIBUTE_POINTS_PER_LEVEL.." PONTOS POR NIVEL",12,
+        UDim2.fromScale(.045,.19),UDim2.fromScale(.9,.052),C.mute)
+    local sc=makeScroll(win)
+    sc.Position=UDim2.fromScale(.043,.28)
+    sc.Size=UDim2.fromScale(.914,.65)
+    for _,key in ipairs(Rules.ATTRIBUTE_ORDER) do
+        local spec=Rules.ATTRIBUTE_INFO[key]
+        local value=math.floor(vals[key] or 0)
+        rowInfo(sc,string.upper(spec.name).."   "..value.."  (+ "..tostring((info.allocated or {})[key] or 0).." investidos)",
+            spec.description,available>0 and "MELHORAR" or nil,function()
+                action:FireServer("allocateStat",key)
+            end)
+    end
+end
 local function showShop()
     local win=createModal("MERCADOR DAS BRASAS  /  LOJA DE OURO","shop")
     label(win,"A moeda dourada e ganha nas aventuras. Gemas sao uma moeda premium separada.",
         13,UDim2.fromScale(.05,.12),UDim2.fromScale(.90,.07),C.mute)
     local wallet=profile and profile.gold or 0
-    label(win,"SEU OURO:  "..wallet,15,UDim2.fromScale(.05,.205),UDim2.fromScale(.87,.06),C.gold,Enum.Font.GothamBold)
+    label(win,"SEU OURO:  "..wallet,15,UDim2.fromScale(.05,.205),UDim2.fromScale(.87,.06),C.gold,Enum.Font.BuilderSansBold)
     local scroll=makeScroll(win)
     scroll.Position=UDim2.fromScale(.05,.30)
     scroll.Size=UDim2.fromScale(.89,.64)
@@ -271,7 +445,7 @@ local function showMap()
         Position=UDim2.fromScale(.47,.47)
     },map)
     local legends=label(win,"◆ VOCÊ  •  ZONA INICIAL: PRAÇA DO PRIMEIRO FOGO",11,
-        UDim2.fromScale(.10,.92),UDim2.fromScale(.80,.048),C.gold,Enum.Font.GothamBold)
+        UDim2.fromScale(.10,.92),UDim2.fromScale(.80,.048),C.gold,Enum.Font.BuilderSansBold)
     local function sync()
         while modal==win.Parent and marker.Parent do
             local char=player.Character
@@ -322,7 +496,7 @@ local function renderDraft(draft)
             local y=.28+(idx-1)*.205
             local f=panel(win,UDim2.fromScale(.89,.175),UDim2.fromScale(.055,y))
             label(f,string.format("%02d   %s",idx,data.name),19,
-                UDim2.fromScale(.04,.12),UDim2.fromScale(.65,.32),C.gold,Enum.Font.Antique)
+                UDim2.fromScale(.04,.12),UDim2.fromScale(.65,.32),C.gold,Enum.Font.Merriweather)
             label(f,data.desc.."  •  Recarga "..data.cooldown.."s",12,
                 UDim2.fromScale(.04,.49),UDim2.fromScale(.63,.37),C.mute)
             button(f,"APRENDER",UDim2.fromScale(.72,.23),UDim2.fromScale(.25,.56),function()
@@ -341,7 +515,7 @@ local function renderCards(cards,wave)
         local y=.28+(idx-1)*.205
         local f=panel(win,UDim2.fromScale(.89,.177),UDim2.fromScale(.055,y))
         label(f,"✦  "..(card.name or ""),20,UDim2.fromScale(.04,.11),UDim2.fromScale(.66,.35),
-            C.gold,Enum.Font.Antique)
+            C.gold,Enum.Font.Merriweather)
         label(f,card.desc or "",13,UDim2.fromScale(.04,.48),UDim2.fromScale(.65,.39),C.mute)
         button(f,"ESCOLHER",UDim2.fromScale(.72,.21),UDim2.fromScale(.25,.60),function()
             action:FireServer("card",card.id);closeModal()
@@ -363,7 +537,7 @@ local function showDeveloper()
             UDim2.fromScale(.07,.22),UDim2.fromScale(.86,.14),C.mute)
         local input=obj("TextBox",{
             Name="DevPassword",Text="",PlaceholderText="Senha de desenvolvimento",
-            ClearTextOnFocus=false,Font=Enum.Font.Gotham,TextSize=20,
+            ClearTextOnFocus=false,Font=Enum.Font.BuilderSans,TextSize=20,
             TextColor3=C.white,BackgroundColor3=C.panel2,
             Position=UDim2.fromScale(.15,.45),Size=UDim2.fromScale(.7,.11),
             BorderSizePixel=0
@@ -376,10 +550,10 @@ local function showDeveloper()
         return
     end
     label(win,"ACESSO TOTAL DE TESTE  •  SOMENTE STUDIO",12,
-        UDim2.fromScale(.05,.12),UDim2.fromScale(.85,.055),C.green,Enum.Font.GothamBold)
+        UDim2.fromScale(.05,.12),UDim2.fromScale(.85,.055),C.green,Enum.Font.BuilderSansBold)
     local val=obj("TextBox",{
         Name="DevValue",Text="5",ClearTextOnFocus=false,PlaceholderText="Valor numerico / texto",
-        Font=Enum.Font.Gotham,TextSize=18,TextColor3=C.white,
+        Font=Enum.Font.BuilderSans,TextSize=18,TextColor3=C.white,
         BackgroundColor3=C.panel2,BorderSizePixel=0,
         Position=UDim2.fromScale(.055,.19),Size=UDim2.fromScale(.89,.08),
     },win)
@@ -422,9 +596,9 @@ local function runSummary(payload)
     local win=createModal("FIM DE RUN  /  ARENA DO CREPÚSCULO","summary")
     local claimed=payload.claimed
     label(win,claimed and "Você caiu. Mas as cinzas guardaram sua força." or "Você deixou a arena antes da queda.",
-        22,UDim2.fromScale(.09,.23),UDim2.fromScale(.83,.15),claimed and C.gold or C.mute,Enum.Font.Antique)
+        22,UDim2.fromScale(.09,.23),UDim2.fromScale(.83,.15),claimed and C.gold or C.mute,Enum.Font.Merriweather)
     label(win,"HORDA SUPERADA: "..payload.wave,26,
-        UDim2.fromScale(.10,.47),UDim2.fromScale(.80,.08),C.white,Enum.Font.GothamBold)
+        UDim2.fromScale(.10,.47),UDim2.fromScale(.80,.08),C.white,Enum.Font.BuilderSansBold)
     label(win,"INIMIGOS: "..payload.kills.."    OURO: +"..payload.gold.."    XP: +"..payload.xp,
         18,UDim2.fromScale(.10,.60),UDim2.fromScale(.80,.10),C.gold)
     button(win,"RETORNAR AO NEXO",UDim2.fromScale(.30,.78),UDim2.fromScale(.40,.10),closeModal,true)
@@ -435,16 +609,35 @@ local function refreshHUD()
     local mode=profile.mode
     gameplay=mode=="sandbox" or mode=="lobby" or mode=="campaign_map" or mode=="dungeon" or mode=="sky"
     hud.Visible=gameplay
+    crosshair.Visible=gameplay and not menuOpen
+    -- Unlike the previously always-visible DEV button, developer controls are
+    -- restricted to the running Studio session and only during active gameplay.
+    devButton.Visible=gameplay and RunService:IsStudio()
+    syncTouchControls()
     if not gameplay then return end
     local class=profile.class or "warrior"
-    statMain.Text=string.format("NV.%d    ◆ %d OURO    ✦ %d GEMAS",
-        profile.level or 1,profile.gold or 0,profile.gems or 0)
+    -- Do not advertise an unfinished premium currency when the player has none.
+    local currency=string.format("NV.%d    •    %d OURO",
+        profile.level or 1,profile.gold or 0)
+    if (profile.gems or 0)>0 then
+        currency..=string.format("    •    %d GEMAS",profile.gems)
+    end
+    statMain.Text=currency
     local rootPart,humanoid=nil,nil
     if player.Character then humanoid=player.Character:FindFirstChildOfClass("Humanoid") end
     local health=humanoid and math.floor(humanoid.Health) or 100
     local maxHP=humanoid and math.floor(humanoid.MaxHealth) or 100
-    statAux.Text=string.format("%d / %d XP    •    VIDA %d / %d",
-        profile.xp or 0,profile.xpNext or 100,health,maxHP)
+    statAux.Text=string.format("VIDA   %d / %d      •      XP %d/%d",
+        health,maxHP,profile.xp or 0,profile.xpNext or 100)
+    hpFill.Size=UDim2.fromScale(math.clamp(health/math.max(1,maxHP),0,1),1)
+    local maxMana=player:GetAttribute("AlnairMaxMana") or 0
+    local mana=player:GetAttribute("AlnairMana") or 0
+    mpContainer.Visible=maxMana>0
+    mpText.Visible=maxMana>0
+    mpFill.Size=UDim2.fromScale(maxMana>0 and math.clamp(mana/maxMana,0,1) or 0,1)
+    mpText.Text=maxMana>0 and string.format("MANA %d/%d  |  EST %d/%d",mana,maxMana,player:GetAttribute("AlnairStamina") or 0,player:GetAttribute("AlnairMaxStamina") or 0) or ""
+    xpBg.Position=maxMana>0 and UDim2.fromScale(.045,.80)
+        or UDim2.fromScale(.045,.69)
     xpFill.Size=UDim2.fromScale(math.clamp((profile.xp or 0)/math.max(1,profile.xpNext or 100),0,1),1)
     local quest=profile.quest
     if mode=="sandbox" then
@@ -489,12 +682,72 @@ local function refreshHUD()
     end
 end
 
+-- Responsividade real para mobile: grupos menores, sem sobreposição na base.
+-- O Layout original é preservado em desktop para não quebrar controles.
+local statsScale=obj("UIScale",{Scale=1},stats)
+local gridScale=obj("UIScale",{Scale=1},bottom)
+local questScale=obj("UIScale",{Scale=1},questPanel)
+local abilityScale=obj("UIScale",{Scale=1},skillBar)
+local function updateResponsiveHud()
+    local cam=workspace.CurrentCamera
+    local width=cam and cam.ViewportSize.X or 1280
+    if width<630 then
+        local tiny=width<370
+        statsScale.Scale=tiny and .43 or .48
+        gridScale.Scale=tiny and .65 or .74
+        questScale.Scale=tiny and .57 or .64
+        abilityScale.Scale=tiny and .49 or .56
+        stats.Position=UDim2.new(0,10,1,-82)
+        bottom.Position=UDim2.new(1,-(tiny and 159 or 177),1,-130)
+        questPanel.Position=UDim2.new(1,-(tiny and 192 or 215),0,60)
+        skillBar.Position=UDim2.new(0,8,1,-135)
+        touchControls.Position=UDim2.new(1,-186,1,-300)
+    else
+        statsScale.Scale=1;gridScale.Scale=1;questScale.Scale=1;abilityScale.Scale=1
+        stats.Position=UDim2.new(0,18,1,-138)
+        bottom.Position=UDim2.new(1,-234,1,-172)
+        questPanel.Position=UDim2.new(1,-341,0,85)
+        skillBar.Position=UDim2.new(1,-561,1,-91)
+        touchControls.Position=UDim2.new(1,-204,1,-273)
+    end
+end
+updateResponsiveHud()
+local cam=workspace.CurrentCamera
+if cam then
+    cam:GetPropertyChangedSignal("ViewportSize"):Connect(updateResponsiveHud)
+end
+
+-- Damage and healing may happen without a server profile snapshot.
+-- Subscribe to actual Humanoid health so HP reacts immediately to enemy hits,
+-- potions, deaths and max-health upgrades instead of remaining stale.
+local healthConn=nil
+local maxHpConn=nil
+local function watchHealth(character)
+    if healthConn then healthConn:Disconnect();healthConn=nil end
+    if maxHpConn then maxHpConn:Disconnect();maxHpConn=nil end
+    local hum=character:FindFirstChildOfClass("Humanoid")
+        or character:WaitForChild("Humanoid",12)
+    if not hum or not hum:IsA("Humanoid") then return end
+    healthConn=hum.HealthChanged:Connect(refreshHUD)
+    maxHpConn=hum:GetPropertyChangedSignal("MaxHealth"):Connect(refreshHUD)
+    refreshHUD()
+end
+player.CharacterAdded:Connect(function(character)
+    task.spawn(watchHealth,character)
+end)
+player.CharacterRemoving:Connect(function()
+    if healthConn then healthConn:Disconnect();healthConn=nil end
+    if maxHpConn then maxHpConn:Disconnect();maxHpConn=nil end
+end)
+if player.Character then task.spawn(watchHealth,player.Character) end
+
 local function toggle(kind)
     if modalKind==kind then closeModal();return end
     if kind=="inventory" then showInventory()
     elseif kind=="map" then showMap()
     elseif kind=="skills" then showSkillbook()
-    elseif kind=="dev" then showDeveloper() end
+    elseif kind=="dev" then showDeveloper()
+    elseif kind=="attributes" then showAttributes() end
 end
 
 -- Reencaminhar cliques dos botoes fixos para as janelas.
@@ -515,6 +768,10 @@ state.OnClientEvent:Connect(function(kind,payload)
         profile=payload
         if modalKind=="dev" and profile and profile.dev then
             showDeveloper()
+        elseif modalKind=="attributes" then
+            showAttributes()
+        elseif modalKind=="inventory" then
+            showInventory()
         end
         refreshHUD()
     elseif kind=="toast" then
@@ -530,24 +787,52 @@ end)
 local ok,initial=pcall(function()return query:InvokeServer() end)
 if ok and initial then profile=initial;refreshHUD() end
 
+-- Mouse-drag is now the custom third-person orbit. A simple click
+-- continues to attack, but a drag must NEVER accidentally swing a sword.
+local mousePressed=false
+local mouseDragPixels=0
+UserInputService.InputChanged:Connect(function(input)
+    if mousePressed and input.UserInputType==Enum.UserInputType.MouseMovement then
+        mouseDragPixels+=math.abs(input.Delta.X)+math.abs(input.Delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType==Enum.UserInputType.MouseButton1 then
+        if mousePressed and mouseDragPixels<8 and gameplay and not menuOpen then
+            sendAttack("basic")
+        end
+        mousePressed=false
+        mouseDragPixels=0
+    end
+end)
 UserInputService.InputBegan:Connect(function(input,processed)
     if processed and input.KeyCode~=Enum.KeyCode.F8 then return end
-    if input.KeyCode==Enum.KeyCode.F8 then toggle("dev");return end
+    if input.KeyCode==Enum.KeyCode.F8 then
+        if gameplay and RunService:IsStudio() then toggle("dev") end
+        return
+    end
     if not gameplay then return end
     if input.KeyCode==Enum.KeyCode.M then toggle("map");return end
     if input.KeyCode==Enum.KeyCode.I then toggle("inventory");return end
     if input.KeyCode==Enum.KeyCode.K then toggle("skills");return end
+    if input.KeyCode==Enum.KeyCode.J then toggle("attributes");return end
     if menuOpen then return end
     if input.KeyCode==Enum.KeyCode.V then action:FireServer("mount","horse")
     elseif input.KeyCode==Enum.KeyCode.B then action:FireServer("mount","dragon")
-    elseif input.KeyCode==Enum.KeyCode.H then action:FireServer("potion")
-    elseif input.UserInputType==Enum.UserInputType.MouseButton1 then action:FireServer("attack","basic")
+    elseif input.KeyCode==Enum.KeyCode.H
+        or input.KeyCode==Enum.KeyCode.ButtonL1 then
+        action:FireServer("potion")
+    elseif input.UserInputType==Enum.UserInputType.MouseButton1 then
+        mousePressed=true
+        mouseDragPixels=0
+    elseif input.KeyCode==Enum.KeyCode.ButtonR2 then
+        sendAttack("basic")
     else
         local keys={Enum.KeyCode.One,Enum.KeyCode.Two,Enum.KeyCode.Three,Enum.KeyCode.Four,Enum.KeyCode.Five}
         for i,key in ipairs(keys) do
             if input.KeyCode==key then
                 local id=profile and profile.skills and profile.skills[i]
-                if id then action:FireServer("attack",id) end
+                if id then sendAttack(id) end
                 break
             end
         end
@@ -580,3 +865,5 @@ RunService.Heartbeat:Connect(function(dt)
 end)
 
 print("[ALNAIR] HUD v0.4 pronto: M mapa, I bolsa, K poderes, F8 DEV, V cavalo, B dragao.")
+
+for _,attr in ipairs({"AlnairMana","AlnairStamina","AlnairMaxMana","AlnairMaxStamina"}) do player:GetAttributeChangedSignal(attr):Connect(function() if profile then refreshHUD() end end) end
